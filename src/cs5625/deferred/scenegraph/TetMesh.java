@@ -1,9 +1,12 @@
 package cs5625.deferred.scenegraph;
 
 import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 import java.util.ArrayList;
 
 import javax.vecmath.Vector3f;
+
+import com.jogamp.common.nio.Buffers;
 
 import cs5625.deferred.misc.OpenGLResourceObject;
 
@@ -22,8 +25,13 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	/** Set the vertices of this TetMesh to the given list of verts. */
 	public void setVerts(ArrayList<Vector3f> verts) {
 		this.verts = new ArrayList<Vert>(verts.size());
+		this.mVertexData = Buffers.newDirectFloatBuffer(verts.size() * 3);
+		
 		for (Vector3f v : verts) {
 			this.verts.add(new Vert(v));
+			mVertexData.put(v.x);
+			mVertexData.put(v.y);
+			mVertexData.put(v.z);
 		}
 	}
 	
@@ -42,13 +50,39 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			Face f2 = addFace(new Face (v0, v2, v3));
 			Face f3 = addFace(new Face (v3, v2, v1));
 			
-			Tet t = new Tet(v0, v1, v2, v3, f0, f1, f2, f3);
+			Tet t = new Tet(v0, v1, v2, v3, f0, f1, f2, f3, 1);
 			
+			//set one of the tets the faces are attached to to t.
 			f0.setTet(t);
 			f1.setTet(t);
 			f2.setTet(t);
 			f3.setTet(t);
 		}
+		
+		createSurface();
+	}
+	
+	/** Set this TetMesh's polygons to be present at any interface between
+	 * tetrahedrons with different materials (where at least one is non-opaque), or
+	 * at boundaries where a Face has only one adjacent Tet.
+	 */
+	private void createSurface() {
+		ArrayList<Face> interFaces = new ArrayList<Face>(10);
+		for (Face f: faces) {
+			if (f.t1 == null || f.t0.mat != f.t1.mat) { //change to account for transparency..
+				interFaces.add(f);
+			}
+		}
+		//copy into an actual array now we know the number of faces required.
+		int[] arr = new int[interFaces.size() * 3];
+		for (int j = 0; j < interFaces.size(); j++) {
+			Face f = interFaces.get(j);
+			arr[3 * j] = faces.indexOf(f.v0);
+			arr[3 * j + 1] = faces.indexOf(f.v1);
+			arr[3 * j + 2] = faces.indexOf(f.v2);
+			//may need to play with winding order..
+		}
+		mPolygonData = IntBuffer.wrap(arr);
 	}
 	
 	/** Discovers if this TetMesh contains a face with the same verts as f. 
@@ -171,6 +205,9 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		public Vert v0, v1, v2, v3;
 		public Face f0, f1, f2, f3;
 		
+		public int mat = 0; //tet material
+		
+		
 		/** Constructor. 
 		 * 
 		 * @param v0 - first vertex
@@ -182,7 +219,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		 * @param f2 - third face 
 		 * @param f3 - fourth face
 		 */
-		public Tet(Vert v0, Vert v1, Vert v2, Vert v3, Face f0, Face f1, Face f2, Face f3) {
+		public Tet(Vert v0, Vert v1, Vert v2, Vert v3, Face f0, Face f1, Face f2, Face f3, int mat) {
 			this.v0 = v0;
 			this.v1 = v1;
 			this.v2 = v2;
@@ -191,6 +228,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			this.f1 = f1;
 			this.f2 = f2;
 			this.f3 = f3;
+			this.mat = mat;
 			
 			f0.setTet(this);
 			f1.setTet(this);
