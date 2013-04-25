@@ -2,6 +2,8 @@ package cs5625.deferred.apps;
 
 import java.awt.Point;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseWheelEvent;
 import java.util.ArrayList;
 
 import javax.vecmath.AxisAngle4f;
@@ -99,7 +101,10 @@ public class ProceduralPlanetSceneController extends SceneController {
 	
 	@Override
 	public void keyPressed(KeyEvent key) {
-		
+		int c = key.getKeyCode();
+		if(c == KeyEvent.VK_W) {
+			
+		}
 	}
 	
 	@Override
@@ -110,6 +115,59 @@ public class ProceduralPlanetSceneController extends SceneController {
 	@Override
 	public void keyTyped(KeyEvent key) {
 		
+	}
+	
+
+	@Override
+	public void mouseWheelMoved(MouseWheelEvent mouseWheel) {
+		/* Zoom in and out by the scroll wheel. */
+		if (!isShadowCamMode) {
+			mCameraRadius += mouseWheel.getUnitsToScroll();
+			updateCamera();
+			requiresRender();
+		}
+	}
+
+	@Override
+	public void mousePressed(MouseEvent mouse)
+	{
+		/* Remember the starting point of a drag. */
+		mLastMouseDrag = mouse.getPoint();
+	}
+	
+	@Override
+	public void mouseDragged(MouseEvent mouse)
+	{
+		/* Calculate dragged delta. */
+		float deltaX = -(mouse.getPoint().x - mLastMouseDrag.x);
+		float deltaY = -(mouse.getPoint().y - mLastMouseDrag.y);
+		mLastMouseDrag = mouse.getPoint();
+		
+		/* Update longitude, wrapping as necessary. */
+		mCameraLongitude += deltaX;
+		
+		if (mCameraLongitude > 360.0f)
+		{
+			mCameraLongitude -= 360.0f;
+		}
+		else if (mCameraLongitude < 0.0f)
+		{
+			mCameraLongitude += 360.0f;
+		}
+		
+		/* Update latitude, clamping as necessary. */
+		if (Math.abs(mCameraLatitude + deltaY) <= 89.0f)
+		{
+			mCameraLatitude += deltaY;
+		}
+		else
+		{
+			mCameraLatitude = 89.0f * Math.signum(mCameraLatitude);
+		}
+	
+		updateCamera();
+		
+		requiresRender();
 	}
 
 }
