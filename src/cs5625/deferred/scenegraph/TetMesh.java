@@ -63,6 +63,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		this.mVertexData = Buffers.newDirectFloatBuffer(verts.size() * 3);
 		int i = 0;
 		for (Vector3f v : verts) {
+			System.out.println("adding vert... " + i);
 			this.verts.add(new Vert(v));
 			mVertexData.put(i++, v.x);
 			mVertexData.put(i++, v.y);
@@ -103,19 +104,26 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	 */
 	private void createSurface() {
 		ArrayList<Face> interFaces = new ArrayList<Face>(10);
+		
 		for (Face f: faces) {
-			if (f.t1 == null || f.t0.mat != f.t1.mat) { //change to account for transparency..
+			//if (f.t1 == null || f.t0.mat != f.t1.mat) { //change to account for transparency..
 				interFaces.add(f);
-			}
+			//}
 		}
 		//copy into an actual array now we know the number of faces required.
 		int[] arr = new int[interFaces.size() * 3];
+		
 		for (int j = 0; j < interFaces.size(); j++) {
+			System.out.println("adding face... " + j);
 			Face f = interFaces.get(j);
-			arr[3 * j] = faces.indexOf(f.v0);
-			arr[3 * j + 1] = faces.indexOf(f.v1);
-			arr[3 * j + 2] = faces.indexOf(f.v2);
+			arr[3 * j] = verts.indexOf(f.v0);
+			arr[3 * j + 1] = verts.indexOf(f.v1);
+			arr[3 * j + 2] = verts.indexOf(f.v2);
 			//may need to play with winding order..
+		}
+		
+		for (int i = 0; i < arr.length; i++) {
+			System.out.println(arr[i]);
 		}
 		mPolygonData = IntBuffer.wrap(arr);
 	}

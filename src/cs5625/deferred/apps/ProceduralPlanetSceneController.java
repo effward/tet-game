@@ -26,7 +26,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 	/* Keeps track of camera's orbit position. Latitude and longitude are in degrees. */
 	private float mCameraLongitude = 50.0f, mCameraLatitude = -40.0f;
 	private float mCameraRadius = 15.0f;
-	private float mMinRadius = .5f, mMaxRadius = 1.5f, mScale = 0.1f;
+	private float mMinRadius = .5f, mMaxRadius = 1.5f, mScale = 5.0f;
 	
 	
 	/* Used to calculate mouse deltas to orbit the camera in mouseDragged(). */ 
@@ -39,13 +39,19 @@ public class ProceduralPlanetSceneController extends SceneController {
 	
 	@Override
 	public void initializeScene() {
+		
 		Geometry planet = new Geometry();
+		
+		
 		TetMesh planetMesh = new TetMesh();
+		
 		Heightmesh planetHM = new Heightmesh();
 		planetHM.createIcosa();
-		//planetHM.subdivide(3);
-		//planetHM.randomize(mMinRadius, mMaxRadius);
-		//planetHM.smooth(3);
+		
+		
+		planetHM.subdivide(3);
+		planetHM.randomize(mMinRadius, mMaxRadius);
+		planetHM.smooth(3);
 		planetHM.scale(mScale);
 		
 		ArrayList<Vertex> vertsHM = planetHM.getVerts();
@@ -72,6 +78,24 @@ public class ProceduralPlanetSceneController extends SceneController {
 		planetMesh.setTets(tets);
 		
 		//planetMesh = new TetMesh(1.0f); //test
+		 
+		 
+		/*
+		planetMesh = new TetMesh();
+		ArrayList<Vector3f> vt = new ArrayList<Vector3f>(4);
+		ArrayList<Integer> pt = new ArrayList<Integer>(4);
+		vt.add(new Vector3f(-1, -1, -1));
+		vt.add(new Vector3f(1, -1, -1));
+		vt.add(new Vector3f(0, 1, -1));
+		vt.add(new Vector3f(0, 0, 1));
+		pt.add(0);
+		pt.add(1);
+		pt.add(2);
+		pt.add(3);
+		planetMesh.setVerts(vt);
+		planetMesh.setTets(pt);
+		
+		*/
 		
 		planet.addMesh(planetMesh);
 		
