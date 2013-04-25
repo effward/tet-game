@@ -71,7 +71,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 		
 		planetMesh.setTets(tets);
 		
-		//planetMesh = new TetMesh(1.0f); //test
+		planetMesh = new TetMesh(1.0f); //test
 		
 		planet.addMesh(planetMesh);
 		
