@@ -1,6 +1,7 @@
 package cs5625.deferred.apps;
 
 import java.awt.Point;
+import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 
 import javax.vecmath.AxisAngle4f;
@@ -94,6 +95,21 @@ public class ProceduralPlanetSceneController extends SceneController {
 		/* Set the camera's position so that it looks towards the origin. */
 		mCamera.setPosition(new Point3f(0.0f, 0.0f, mCameraRadius));
 		Util.rotateTuple(mCamera.getOrientation(), mCamera.getPosition());
+	}
+	
+	@Override
+	public void keyPressed(KeyEvent key) {
+		
+	}
+	
+	@Override
+	public void keyReleased(KeyEvent key) {
+		
+	}
+	
+	@Override
+	public void keyTyped(KeyEvent key) {
+		
 	}
 
 }
