@@ -177,7 +177,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			this.v2 = v2;
 		}
 		
-		/** Set one of the two tetrahedra of this Face to t. Does nothing of both tets are already filled.
+		/** Set one of the two tetrahedra of this Face to t. Does nothing if both tets are already filled.
 		 * 
 		 * @param t - the Tet to set.
 		 */
