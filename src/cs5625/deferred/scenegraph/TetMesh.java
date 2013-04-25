@@ -22,16 +22,51 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		tets = new ArrayList<Tet>(10);
 	}
 	
+	public TetMesh(float f) {
+		verts = new ArrayList<Vert>(10);
+		faces = new ArrayList<Face>(10);
+		tets = new ArrayList<Tet>(10);
+		
+		mVertexData = Buffers.newDirectFloatBuffer(12);
+		mVertexData.put(0, -1.0f);
+		mVertexData.put(1, -1.0f);
+		mVertexData.put(2, -1.0f);
+		mVertexData.put(3, 1.0f);
+		mVertexData.put(4, -1.0f);
+		mVertexData.put(5, -1.0f);
+		mVertexData.put(6, 0.0f);
+		mVertexData.put(7, 1.0f);
+		mVertexData.put(8, -1.0f);
+		mVertexData.put(9, 0.0f);
+		mVertexData.put(10, 0.0f);
+		mVertexData.put(11, 1.0f);
+		
+		mPolygonData = Buffers.newDirectIntBuffer(12);
+		
+		mPolygonData.put(0, 0);
+		mPolygonData.put(1, 1);
+		mPolygonData.put(2, 2);
+		mPolygonData.put(3, 0);
+		mPolygonData.put(4, 3);
+		mPolygonData.put(5, 1);
+		mPolygonData.put(6, 0);
+		mPolygonData.put(7, 2);
+		mPolygonData.put(8, 3);
+		mPolygonData.put(9, 3);
+		mPolygonData.put(10, 2);
+		mPolygonData.put(11, 1);
+	}
+	
 	/** Set the vertices of this TetMesh to the given list of verts. */
 	public void setVerts(ArrayList<Vector3f> verts) {
 		this.verts = new ArrayList<Vert>(verts.size());
 		this.mVertexData = Buffers.newDirectFloatBuffer(verts.size() * 3);
-		
+		int i = 0;
 		for (Vector3f v : verts) {
 			this.verts.add(new Vert(v));
-			mVertexData.put(v.x);
-			mVertexData.put(v.y);
-			mVertexData.put(v.z);
+			mVertexData.put(i++, v.x);
+			mVertexData.put(i++, v.y);
+			mVertexData.put(i++, v.z);
 		}
 	}
 	
