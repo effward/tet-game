@@ -1,5 +1,7 @@
 package procedural;
 
+import javax.vecmath.Vector3f;
+
 /* Vec3f.java
  * By: Noah Warnke
  * 
@@ -8,9 +10,10 @@ package procedural;
 /** Represents a 3D vector with float-valued components. */
 public class Vec3f {
 	//The three components.
-	private float x;
-	private float y;
-	private float z;
+	//private float x;
+	//private float y;
+	//private float z;
+	public Vector3f v;
 	
 	//Various static values.
 	public static final Vec3f ZERO_VECTOR   = new Vec3f(0.0f, 0.0f, 0.0f);
@@ -21,253 +24,258 @@ public class Vec3f {
 	
 	/** Constructor: = a new Vec3f with components <0, 0, 0>. */
 	public Vec3f() {
-		x = 0.0f;
-		y = 0.0f;
-		z = 0.0f;
+		//x = 0.0f;
+		//y = 0.0f;
+		//z = 0.0f;
+		v = new Vector3f(0f,0f,0f);
 	}
 	
 	/** Constructor: = a new Vec3f with components <inX, inY, inZ>. */
 	public Vec3f (float inX, float inY, float inZ) {
-		x = inX;
-		y = inY;
-		z = inZ;
+		//x = inX;
+		//y = inY;
+		//z = inZ;
+		v = new Vector3f(inX, inY, inZ);
 	}
 	
 	/** Constructor: = a new Vec3f with components <inVec.x, inVec.y, inVec.z>. */
 	public Vec3f(Vec3f inVec) {
-		x = inVec.x;
-		y = inVec.y;
-		z = inVec.z;
+		//x = inVec.x;
+		//y = inVec.y;
+		//z = inVec.z;
+		v = new Vector3f(inVec.v);
 	}
 	
 	/** = this Vec3f's x component. */
 	public float getX() {
-		return x;
+		//return x;
+		return v.x;
 	}
 	
 	/** = this Vec3f's y component. */
 	public float getY() {
-		return y;
+		//return y;
+		return v.y;
 	}
 	
 	/** = this Vec3f's z component. */
 	public float getZ() {
-		return z;
+		return v.z;
 	}
 	
 	/** Set this Vec3f's x component to inX. */
 	public void setX(float inX) {
-		x = inX;
+		v.x = inX;
 	}
 	
 	/** Set this Vec3f's x component to inX. */
 	public void setY(float inY) {
-		y = inY;
+		v.y = inY;
 	}
 	
 	/** Set this Vec3f's x component to inX. */
 	public void setZ(float inZ) {
-		z = inZ;
+		v.z = inZ;
 	}
 	
 	/** Set this Vec3f's components to x, y, z. */
 	public void set(float x, float y, float z) {
-		this.x = x;
-		this.y = y;
-		this.z = z;
+		this.v.x = x;
+		this.v.y = y;
+		this.v.z = z;
 	}
 	
 	/** Set this Vec3f's components to those of v. */
-	public void set(Vec3f v) {
-		this.x = v.x;
-		this.y = v.y;
-		this.z = v.z;
+	public void set(Vec3f vec) {
+		this.v.x = vec.v.x;
+		this.v.y = vec.v.y;
+		this.v.z = vec.v.z;
 	}
 	
 	/** = a String representation of this Vec3f. */
 	public String toString() {
-		return "<" + x + ", " + y + ", " + z + ">";
+		return "<" + v.x + ", " + v.y + ", " + v.z + ">";
 	}
 	
 	/** = this Vec3f in a 3-element float array. */
 	public float[] toArray() {
-		float[] result = {x, y, z};
+		float[] result = {v.x, v.y, v.z};
 		return result;
 	}
 	
 	/** = "This Vec3f has the same component values as inVec." */
 	public boolean equals(Vec3f inVec) {
-		return (x == inVec.x && y == inVec.y && z == inVec.z);
+		return (v.x == inVec.v.x && v.y == inVec.v.y && v.z == inVec.v.z);
 	}
 	
 	/** = a copy (aka clone) of this Vec3f. */
 	public Vec3f copy() {
-		return new Vec3f(x, y, z);
+		return new Vec3f(v.x, v.y, v.z);
 	}
 	
 	/** = a new Vec3f that equals this Vec3f plus inVec. */
 	public Vec3f plus(Vec3f rhs) {
-		return new Vec3f(x + rhs.x, y + rhs.y, z + rhs.z);
+		return new Vec3f(v.x + rhs.v.x, v.y + rhs.v.y, v.z + rhs.v.z);
 	}
 	
 	/** Set result to be the sum of this Vec3f and rhs. */
 	public void plusSet(Vec3f rhs, Vec3f result) {
-		result.set(this.x + rhs.x, this.y + rhs.y, this.z + rhs.z);
+		result.set(this.v.x + rhs.v.x, this.v.y + rhs.v.y, this.v.z + rhs.v.z);
 	}
 	
 	/** Add rhs's components to this Vec3f's components. */
 	public void plusEquals(Vec3f rhs) {
-		x += rhs.x;
-		y += rhs.y;
-		z += rhs.z;
+		v.x += rhs.v.x;
+		v.y += rhs.v.y;
+		v.z += rhs.v.z;
 	}
 	
 	/** Add dx, dy, dz to x, y, z. */
 	public void plusEquals(float dx, float dy, float dz) {
-		x += dx;
-		y += dy;
-		z += dz;
+		v.x += dx;
+		v.y += dy;
+		v.z += dz;
 	}
 	
 	/** Add rhs to x. */
 	public void xPlusEquals(float rhs) {
-		x += rhs;
+		v.x += rhs;
 	}
 	
 	/** Add rhs to y. */
 	public void yPlusEquals(float rhs) {
-		y += rhs;
+		v.y += rhs;
 	}
 	
 	/** Add rhs to z. */
 	public void zPlusEquals(float rhs) {
-		z += rhs;
+		v.z += rhs;
 	}
 	
 	/**  = a new Vec3f that equals this Vec3f minus irhs. */
 	public Vec3f minus(Vec3f rhs) {
-		return new Vec3f(x - rhs.x, y - rhs.y, z - rhs.z);
+		return new Vec3f(v.x - rhs.v.x, v.y - rhs.v.y, v.z - rhs.v.z);
 	}
 	
 	/** Sets result to be this Vec3f minus rhs. */
 	public void minusSet(Vec3f rhs, Vec3f result) {
 		result.set(
-			this.x - rhs.x,
-			this.y - rhs.y,
-			this.z - rhs.z
+			this.v.x - rhs.v.x,
+			this.v.y - rhs.v.y,
+			this.v.z - rhs.v.z
 		);
 	}
 	
 	/** Subtract inVec's components from this Vec3f's components. */
 	public void minusEquals(Vec3f rhs) {
-		x -= rhs.x;
-		y -= rhs.y;
-		z -= rhs.z;
+		v.x -= rhs.v.x;
+		v.y -= rhs.v.y;
+		v.z -= rhs.v.z;
 	}
 	
 	/** Subtract dx, dy, dz from x, y, z. */
 	public void minusEquals(float dx, float dy, float dz) {
-		x -= dx;
-		y -= dy;
-		z -= dz;
+		v.x -= dx;
+		v.y -= dy;
+		v.z -= dz;
 	}
 	
 	/** Subtract rhs from x. */
 	public void xMinusEquals(float rhs) {
-		x -= rhs;
+		v.x -= rhs;
 	}
 	
 	/** Subtract rhs from y. */
 	public void yMinusEquals(float rhs) {
-		y -= rhs;
+		v.y -= rhs;
 	}
 	
 	/** Subtract rhs from z. */
 	public void zMinusEquals(float rhs) {
-		z -= rhs;
+		v.z -= rhs;
 	}
 	
 	/** = a new Vec3f that equals this Vec3f times factor. */
 	public Vec3f times(float factor) {
-		return new Vec3f(x * factor, y * factor, z * factor);
+		return new Vec3f(v.x * factor, v.y * factor, v.z * factor);
 	}
 	
 	/** Multiply this Vec3f's components by factor. */
 	public void timesEquals(float factor) {
-		x *= factor;
-		y *= factor;
-		z *= factor;
+		v.x *= factor;
+		v.y *= factor;
+		v.z *= factor;
 	}
 	
 	/** Multiply x by rhs. */
 	public void xTimesEquals(float rhs) {
-		x *= rhs;
+		v.x *= rhs;
 	}
 	
 	/** Multiply y by rhs. */
 	public void yTimesEquals(float rhs) {
-		y *= rhs;
+		v.y *= rhs;
 	}
 	
 	/** Multiply z by rhs. */
 	public void zTimesEquals(float rhs) {
-		z *= rhs;
+		v.z *= rhs;
 	}
 	
 	/** = a new Vec3f that equals this Vec3f divided by factor. */
 	public Vec3f div(float factor) {
-		return new Vec3f(x / factor, y / factor, z / factor);
+		return new Vec3f(v.x / factor, v.y / factor, v.z / factor);
 	}
 	
 	/** Divide this Vec3f's components by factor. */
 	public void divEquals(float factor) {
-		x /= factor;
-		y /= factor;
-		z /= factor;
+		v.x /= factor;
+		v.y /= factor;
+		v.z /= factor;
 	}
 	
 	/** Divide x by rhs. */
 	public void xDivEquals(float rhs) {
-		x /= rhs;
+		v.x /= rhs;
 	}
 	
 	/** Divide y by rhs. */
 	public void yDivEquals(float rhs) {
-		y /= rhs;
+		v.y /= rhs;
 	}
 	
 	/** Divee z by rhs. */
 	public void zDivEquals(float rhs) {
-		z /= rhs;
+		v.z /= rhs;
 	}
 	
 	/** = the magnitude of this Vec3f. */
 	public float magnitude() {
-		return (float)Math.sqrt(x*x + y*y + z*z);
+		return (float)Math.sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
 	}
 	
 	/** = the magnitude squared of this Vec3f. Useful where you don't want to use a square root. */
 	public float magnitudeSquared() {
-		return x*x + y*y + z*z;
+		return v.x*v.x + v.y*v.y + v.z*v.z;
 	}
 	
 	/** = a new Vec3f of the unit-vector version of this Vec3f. */
 	public Vec3f normalize() {
 		float mag = this.magnitude();
-		return new Vec3f(x / mag, y / mag, z / mag);
+		return new Vec3f(v.x / mag, v.y / mag, v.z / mag);
 	}
 	
 	/** Sets this Vec3f to equal its unit-vector version. */
 	public void normalizeEquals() {
 		float mag = this.magnitude();
-		x /= mag;
-		y /= mag;
-		z /= mag;
+		v.x /= mag;
+		v.y /= mag;
+		v.z /= mag;
 	}
 	
 	/** = the dot product of this Vec3f and rhs. */
 	public float dot(Vec3f rhs) {
-		return x * rhs.x + y * rhs.y + z * rhs.z;
+		return v.x * rhs.v.x + v.y * rhs.v.y + v.z * rhs.v.z;
 	}	
 	
 	/** = the angle between this Vec3f and rhs.
@@ -288,9 +296,9 @@ public class Vec3f {
 	 */
 	public float distanceBetween(Vec3f rhs) {
 		return (float)Math.sqrt(
-				(x - rhs.x) * (x - rhs.x) + 
-				(y - rhs.y) * (y - rhs.y) +
-				(z - rhs.z) * (z - rhs.z)
+				(v.x - rhs.v.x) * (v.x - rhs.v.x) + 
+				(v.y - rhs.v.y) * (v.y - rhs.v.y) +
+				(v.z - rhs.v.z) * (v.z - rhs.v.z)
 		);
 	}
 	
@@ -301,9 +309,9 @@ public class Vec3f {
 	 */
 	public float distanceSquaredBetween(Vec3f rhs) {
 		return 
-				(x - rhs.x) * (x - rhs.x) + 
-				(y - rhs.y) * (y - rhs.y) +
-				(z - rhs.z) * (z - rhs.z)
+				(v.x - rhs.v.x) * (v.x - rhs.v.x) + 
+				(v.y - rhs.v.y) * (v.y - rhs.v.y) +
+				(v.z - rhs.v.z) * (v.z - rhs.v.z)
 		;
 	}
 	
@@ -342,9 +350,9 @@ public class Vec3f {
 	/** = a new Vec3f that equals the cross product of this Vec3f and inVec. */
 	public Vec3f cross(Vec3f inVec) {
 		return new Vec3f(
-			this.y * inVec.z - this.z * inVec.y, 
-			this.z * inVec.x - this.x * inVec.z,
-			this.x * inVec.y - this.y * inVec.x
+			this.v.y * inVec.v.z - this.v.z * inVec.v.y, 
+			this.v.z * inVec.v.x - this.v.x * inVec.v.z,
+			this.v.x * inVec.v.y - this.v.y * inVec.v.x
 		);
 	}
 	
@@ -352,9 +360,9 @@ public class Vec3f {
 	 *  Beware of using either rhs or this Vec3f as the result - it will screw things up. */
 	public void crossSet(Vec3f rhs, Vec3f result) {
 		result.set(
-			this.y * rhs.z - this.z * rhs.y,
-			this.z * rhs.x - this.x * rhs.z,
-			this.x * rhs.y - this.y * rhs.x
+			this.v.y * rhs.v.z - this.v.z * rhs.v.y,
+			this.v.z * rhs.v.x - this.v.x * rhs.v.z,
+			this.v.x * rhs.v.y - this.v.y * rhs.v.x
 		);
 	}
 }
