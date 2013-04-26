@@ -449,7 +449,6 @@ public class Renderer
 		gl.glUniform1i(mShadowModeUniformLocation, mShadowMode);
 		
 		if (shadowCamera != null) {
-			// TODO PA3: Set the LightMatrix and InverseViewMatrix uniforms.
 			
 			/* Set LightMatrix, which sends points from world space into (light) camera clip coordinates space. */
 			/* Set InverseViewMatrix, which sends points from the (eye) camera local space into world space. */
@@ -632,6 +631,9 @@ public class Renderer
 
 		/* Send custom vertex attributes (if any) to OpenGL. */
 		bindRequiredMeshAttributes(gl, mesh);
+		
+		//Only render front polys
+		gl.glPolygonMode(GL2.GL_BACK, GL2.GL_FILL);
 		
 		/* Render polygons. */
 		gl.glDrawElements(getOpenGLPrimitiveType(mesh.getVerticesPerPolygon()), 
@@ -934,7 +936,7 @@ public class Renderer
 			gl.glUniform1i(mUberShader.getUniformLocation(gl, "MaterialParams1Buffer"), 2);
 			gl.glUniform1i(mUberShader.getUniformLocation(gl, "MaterialParams2Buffer"), 3);
 			gl.glUniform1i(mUberShader.getUniformLocation(gl, "SilhouetteBuffer"), 4);
-			gl.glUniform3f(mUberShader.getUniformLocation(gl, "SkyColor"), 0.1f, 0.1f, 0.1f);
+			gl.glUniform3f(mUberShader.getUniformLocation(gl, "SkyColor"), 0.4f, 0.8f, 1.0f);
 			gl.glUniform1i(mUberShader.getUniformLocation(gl, "ShadowMap"), mShadowTextureLocation);
 			mUberShader.unbind(gl);			
 			

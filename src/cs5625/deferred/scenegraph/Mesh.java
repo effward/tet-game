@@ -12,6 +12,7 @@ import javax.vecmath.Vector3f;
 import com.jogamp.common.nio.Buffers;
 
 import cs5625.deferred.materials.BlinnPhongMaterial;
+import cs5625.deferred.materials.LambertianMaterial;
 import cs5625.deferred.materials.Material;
 import cs5625.deferred.misc.OpenGLResourceObject;
 
