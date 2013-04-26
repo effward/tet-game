@@ -23,6 +23,14 @@ import cs5625.deferred.materials.Texture2D;
  */
 public class Util
 {
+	public static Quat4f quatFromAngle(float xx, float yy, float zz, float a) {
+		float sin = (float) Math.sin((double)a/2.0);
+		Quat4f ret = new Quat4f(xx * sin, yy * sin, zz * sin, (float) Math.cos((double)a/2.0));
+		ret.normalize();
+		return ret;
+	}
+	
+	
 	/**
 	 * Rotates the tuple (vector or point) by a quaternion.
 	 * 
