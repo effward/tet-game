@@ -10,6 +10,7 @@ import com.jogamp.common.nio.Buffers;
 
 import cs5625.deferred.misc.OpenGLResourceObject;
 
+/** A tetrahedral mesh object. */
 public class TetMesh extends Mesh implements OpenGLResourceObject {
 	private ArrayList<Vert> verts;
 	private ArrayList<Face> faces;
@@ -22,48 +23,12 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		tets = new ArrayList<Tet>(10);
 	}
 	
-	public TetMesh(float f) {
-		verts = new ArrayList<Vert>(10);
-		faces = new ArrayList<Face>(10);
-		tets = new ArrayList<Tet>(10);
-		
-		mVertexData = Buffers.newDirectFloatBuffer(12);
-		mVertexData.put(0, -1.0f);
-		mVertexData.put(1, -1.0f);
-		mVertexData.put(2, -1.0f);
-		mVertexData.put(3, 1.0f);
-		mVertexData.put(4, -1.0f);
-		mVertexData.put(5, -1.0f);
-		mVertexData.put(6, 0.0f);
-		mVertexData.put(7, 1.0f);
-		mVertexData.put(8, -1.0f);
-		mVertexData.put(9, 0.0f);
-		mVertexData.put(10, 0.0f);
-		mVertexData.put(11, 1.0f);
-		
-		mPolygonData = Buffers.newDirectIntBuffer(12);
-		
-		mPolygonData.put(0, 0);
-		mPolygonData.put(1, 1);
-		mPolygonData.put(2, 2);
-		mPolygonData.put(3, 0);
-		mPolygonData.put(4, 3);
-		mPolygonData.put(5, 1);
-		mPolygonData.put(6, 0);
-		mPolygonData.put(7, 2);
-		mPolygonData.put(8, 3);
-		mPolygonData.put(9, 3);
-		mPolygonData.put(10, 2);
-		mPolygonData.put(11, 1);
-	}
-	
 	/** Set the vertices of this TetMesh to the given list of verts. */
 	public void setVerts(ArrayList<Vector3f> verts) {
 		this.verts = new ArrayList<Vert>(verts.size());
 		this.mVertexData = Buffers.newDirectFloatBuffer(verts.size() * 3);
 		int i = 0;
 		for (Vector3f v : verts) {
-			System.out.println("adding vert... " + i);
 			this.verts.add(new Vert(v));
 			mVertexData.put(i++, v.x);
 			mVertexData.put(i++, v.y);
@@ -81,21 +46,11 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			Vert v2 = verts.get(tets.get(4 * i + 2));
 			Vert v3 = verts.get(tets.get(4 * i + 3));
 			
-			Face f0 = addFace(new Face (v0, v1, v2));
-			Face f1 = addFace(new Face (v0, v3, v1));
-			Face f2 = addFace(new Face (v0, v2, v3));
-			Face f3 = addFace(new Face (v3, v2, v1));
-			
-			Tet t = new Tet(v0, v1, v2, v3, f0, f1, f2, f3, 1);
-			
-			//set one of the tets the faces are attached to to t.
-			f0.setTet(t);
-			f1.setTet(t);
-			f2.setTet(t);
-			f3.setTet(t);
+			Tet t = new Tet(v0, v1, v2, v3, 1);
+			this.tets.add(t);
 		}
-		
 		createSurface();
+		
 	}
 	
 	/** Set this TetMesh's polygons to be present at any interface between
@@ -103,18 +58,18 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	 * at boundaries where a Face has only one adjacent Tet.
 	 */
 	private void createSurface() {
+		//Go through and find all faces which are interfaces between different materials
+		//or are boundaries at the edge of the tetmesh.
 		ArrayList<Face> interFaces = new ArrayList<Face>(10);
-		
 		for (Face f: faces) {
-			//if (f.t1 == null || f.t0.mat != f.t1.mat) { //change to account for transparency..
+			if (f.t1 == null || f.t0.mat != f.t1.mat) { //change to account for transparency..
 				interFaces.add(f);
-			//}
+			}
 		}
-		//copy into an actual array now we know the number of faces required.
-		int[] arr = new int[interFaces.size() * 3];
 		
+		//Copy these into an actual array now we know the number of faces required.
+		int[] arr = new int[interFaces.size() * 3];
 		for (int j = 0; j < interFaces.size(); j++) {
-			System.out.println("adding face... " + j);
 			Face f = interFaces.get(j);
 			arr[3 * j] = verts.indexOf(f.v0);
 			arr[3 * j + 1] = verts.indexOf(f.v1);
@@ -122,10 +77,10 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			//may need to play with winding order..
 		}
 		
-		for (int i = 0; i < arr.length; i++) {
-			System.out.println(arr[i]);
-		}
+		//And store in the mesh's polygon data buffer.
 		mPolygonData = IntBuffer.wrap(arr);
+		
+		
 	}
 	
 	/** Discovers if this TetMesh contains a face with the same verts as f. 
@@ -134,7 +89,10 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	 * @return the index of a face with the same verts, or -1 if one does not exist.
 	 */
 	public int hasFace(Face f) {
-		return faces.indexOf(f);
+		//return faces.indexOf(f); //doesn't use face.equals for some reason...
+		int k = 0;
+		while (k < faces.size() && !faces.get(k).equals(f)) {k++;}
+		return (k < faces.size() ? k : -1);
 	}
 	
 	/** Add Face f if it is not already listed. 
@@ -225,8 +183,8 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		 * @param t - the Tet to set.
 		 */
 		public void setTet(Tet t) {
-			if (t0 == null) t0 = t;
-			else if (t1 == null) t1 = t;
+			if (t0 == null) {t0 = t;}
+			else if (t1 == null) {t1 = t;}
 			else {} //tried to set a tet on a face that already had its tets filled.
 		}
 		
@@ -262,17 +220,26 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		 * @param f2 - third face 
 		 * @param f3 - fourth face
 		 */
-		public Tet(Vert v0, Vert v1, Vert v2, Vert v3, Face f0, Face f1, Face f2, Face f3, int mat) {
+		public Tet(Vert v0, Vert v1, Vert v2, Vert v3, int mat) {
 			this.v0 = v0;
 			this.v1 = v1;
 			this.v2 = v2;
 			this.v3 = v3;
+			
+			this.mat = mat;
+			
+			//Create/find faces that go with the given verts
+			Face f0 = addFace(new Face (v0, v1, v2));
+			Face f1 = addFace(new Face (v0, v3, v1));
+			Face f2 = addFace(new Face (v0, v2, v3));
+			Face f3 = addFace(new Face (v3, v2, v1));
+			
 			this.f0 = f0;
 			this.f1 = f1;
 			this.f2 = f2;
 			this.f3 = f3;
-			this.mat = mat;
 			
+			//Set one of the two tets each face stores to be this new tet.
 			f0.setTet(this);
 			f1.setTet(this);
 			f2.setTet(this);
