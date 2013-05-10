@@ -159,13 +159,19 @@ public class ProceduralPlanetSceneController extends SceneController {
 		else {
 			Point3f worldPos = mCamera.getPosition();//mCamera.transformPointToWorldSpace(mCameraPosition);
 			
-			Vector3f yPS = new Vector3f(worldPos);
+			Point3f displacement = new Point3f(0f,0f,0f);
+			
+			displacement.sub(worldPos, displacement);
+			
+			Vector3f yPS = new Vector3f(displacement);
 			yPS.normalize();
 			Vector3f yWS = new Vector3f(0f, 1f, 0f);
 			Vector3f xPS = new Vector3f();
 			xPS.cross(yWS, yPS);
+			xPS.normalize();
 			Vector3f zPS = new Vector3f();
 			zPS.cross(xPS, yPS);
+			zPS.normalize();
 			
 			Vector3f fwd = new Vector3f(
 					(float)(Math.cos(mCameraTheta) * Math.cos(mCameraPhi)),
@@ -183,6 +189,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 			
 			Vector3f up = new Vector3f();
 			up.cross(left, fwd);
+			up.normalize();
 
 			GVector upG = new GVector(up);
 			
@@ -198,15 +205,20 @@ public class ProceduralPlanetSceneController extends SceneController {
 			
 			//set fwd, up to fwdG, upG
 			
-			//mCamera.forward = new Vector3f((float)fwdWS.getElement(0), (float)fwdWS.getElement(1), (float)fwdWS.getElement(2));
-			//mCamera.up = new Vector3f((float)upWS.getElement(0), (float)upWS.getElement(1), (float)upWS.getElement(2));
+			Vector3f upWS2 = new Vector3f((float)upWS.getElement(0), (float)upWS.getElement(1), (float)upWS.getElement(2));
 			
-			mCamera.forward = fwd;//new Vector3f(fwdX, fwdY, fwdZ);
-			mCamera.up = up;//upTemp;
+			mCamera.forward = new Vector3f((float)fwdWS.getElement(0), (float)fwdWS.getElement(1), (float)fwdWS.getElement(2));
+			mCamera.up = upWS2;
+			
+			//mCamera.forward = fwd;//new Vector3f(fwdX, fwdY, fwdZ);
+			//mCamera.up = up;//upTemp;
+			
+			/*
 			Vector3f upW = new Vector3f(0f,1f,0f);
 			Vector3f upAdjustAxis = new Vector3f();
-			upAdjustAxis.cross(up, upW);
-			float upAngle = (float) Math.acos(up.dot(upW));
+			upAdjustAxis.cross(upWS2, upW);
+			upAdjustAxis.normalize();
+			float upAngle = (float) Math.acos(upWS2.dot(upW));
 			
 			AxisAngle4f upAdjust = new AxisAngle4f(upAdjustAxis, upAngle);
 			
@@ -224,6 +236,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 			combo.mul(upQuat, leftQuat);
 			
 			mCamera.setOrientation(combo);
+			*/
 			
 			System.out.println("***************************************************");
 			System.out.println("CameraWorldPosition: " + worldPos);
@@ -231,12 +244,14 @@ public class ProceduralPlanetSceneController extends SceneController {
 			System.out.println("fwd: " + fwd);
 			System.out.println("left: " + left);
 			System.out.println("up: " + up);
+			/*
 			System.out.println("upAdjustAxis: " + upAdjustAxis);
 			System.out.println("upAngle: " + upAngle);
 			System.out.println("leftAngle: " + leftAngle);
 			System.out.println("upQuat: " + upQuat);
 			System.out.println("leftQuat: " + leftQuat);
 			System.out.println("combo: " + combo);
+			*/
 			
 			/*
 			Vector3f worldCameraUp = new Vector3f(mCamera.transformPointToWorldSpace(new Point3f(0f,1f,0f)));
@@ -264,6 +279,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 			
 			mCamera.setOrientation(combo);
 			*/
+			worldPos.add(mCameraPosition);
 			mCamera.setPosition(worldPos);
 			mCameraPosition.scale(0);
 			
@@ -311,10 +327,12 @@ public class ProceduralPlanetSceneController extends SceneController {
 			if (mOrbitCameraMode) {
 				mOrbitCameraMode = false;
 				mCamera.mIsPlanetCamera = true;
+				mCamera.setPosition(mCamera.getWorldspacePosition());
 			}
 			else {
 				mOrbitCameraMode = true;
 				mCamera.mIsPlanetCamera = false;
+				mCamera.setPosition(new Point3f(0f,0f,0f));
 			}
 		}
 		if (c == 'p' || c == 'P') {
