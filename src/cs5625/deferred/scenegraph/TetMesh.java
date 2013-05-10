@@ -59,7 +59,6 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		System.out.println("setting tets"); //TODO remove
 		this.tets = new ArrayList<Tet>(tets.size() / 4);
 		for (int i = 0; i < tets.size() / 4; i++) {
-			if (i % 100 == 0) System.out.println(i); //TODO remove
 			Vert v0 = verts.get(tets.get(4 * i));
 			Vert v1 = verts.get(tets.get(4 * i + 1));
 			Vert v2 = verts.get(tets.get(4 * i + 2));
