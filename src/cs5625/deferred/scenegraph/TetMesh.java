@@ -161,13 +161,19 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	/** Discovers if this TetMesh contains a face with the same verts as f. 
 	 * 
 	 * @param f - the Face to check.
-	 * @return the index of a face with the same verts, or -1 if one does not exist.
+	 * @return the Face with the same verts, or null if one does not exist.
 	 */
-	public int hasFace(Face f) {
-		//return faces.indexOf(f); //doesn't use face.equals for some reason...
-		int k = 0;
-		while (k < faces.size() && !faces.get(k).equals(f)) {k++;}
-		return (k < faces.size() ? k : -1);
+	public Face hasFace(Face f) {		
+		for (Face a : f.v0.faces) {
+			if (a.equals(f)) return a;
+		}
+		for (Face a : f.v1.faces) {
+			if (a.equals(f)) return a;
+		}
+		for (Face a : f.v2.faces) {
+			if (a.equals(f)) return a;
+		}
+		return null;
 	}
 	
 	/** Add Face f if it is not already listed. 
@@ -176,13 +182,16 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	 * @return f if it was not already in faces, or the old Face if it was.
 	 */
 	public Face addFace (Face f) {
-		int i = hasFace(f);
-		if (i == -1) {
+		Face a = hasFace(f);
+		if (a == null) {
 			faces.add(f);
+			f.v0.addFace(f);
+			f.v1.addFace(f);
+			f.v2.addFace(f);
 			return f;
 		}
 		else {
-			return faces.get(i);
+			return a;
 		}
 		
 	}
@@ -218,6 +227,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	/** A vertex. */
 	private class Vert {
 		public Vector3f pos;
+		public ArrayList<Face> faces;
 		
 		/** Constructor.
 		 * 
@@ -225,6 +235,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		 */
 		public Vert(Vector3f pos) {
 			this.pos = pos;
+			faces = new ArrayList<Face>(1);
 		}
 		
 		/** Check Vert equality based on position.
@@ -234,6 +245,10 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		 */
 		public boolean equals(Vert v) {
 			return pos.equals(v.pos);
+		}
+		
+		public void addFace(Face f) {
+			faces.add(f);
 		}
 	}
 	
@@ -253,6 +268,8 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			this.v1 = v1;
 			this.v2 = v2;
 		}
+		
+		
 		
 		/** Set one of the two tetrahedra of this Face to t. Does nothing if both tets are already filled.
 		 * 
