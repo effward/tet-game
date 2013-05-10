@@ -1,13 +1,18 @@
 package cs5625.deferred.scenegraph;
 
+import java.io.IOException;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
 
+import javax.media.opengl.glu.GLU;
+import javax.vecmath.Color3f;
 import javax.vecmath.Vector3f;
 
 import com.jogamp.common.nio.Buffers;
 
+import cs5625.deferred.materials.BlinnPhongMaterial;
+import cs5625.deferred.materials.Texture2D;
 import cs5625.deferred.misc.OpenGLResourceObject;
 
 /** A tetrahedral mesh object. */
@@ -21,6 +26,18 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		verts = new ArrayList<Vert>(10);
 		faces = new ArrayList<Face>(10);
 		tets = new ArrayList<Tet>(10);
+
+		BlinnPhongMaterial mat = new BlinnPhongMaterial();
+		try {
+			Texture2D rock = Texture2D.load(GLU.getCurrentGL().getGL2(), "textures/Rock.png");
+			mat.setDiffuseTexture(rock);
+		}
+		catch(Exception e) {
+			System.out.println(e);
+		}
+		mat.setSpecularColor(new Color3f(0.0f, 0.0f, 0.0f));
+		setMaterial(mat);
+		//mat.setDiffuseTexture(new Texture2D)
 	}
 	
 	/** Set the vertices of this TetMesh to the given list of verts. */
@@ -67,19 +84,75 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			}
 		}
 		
+		System.out.println("Faces: " + faces.size());
+		System.out.println("Shown faces: " + interFaces.size());
+		
 		//Copy these into an actual array now we know the number of faces required.
 		int[] arr = new int[interFaces.size() * 3];
+		
+		//simultaneously compute normals.
+		Vector3f[] norms = new Vector3f[verts.size()];
+		float[] normArr = new float[verts.size() * 3];
+		
+		float[] texArr = new float[verts.size() * 2];
+		
+		for (int i = 0; i < norms.length; i++) {
+			norms[i] = new Vector3f(0.0f, 0.0f, 0.0f); //zero normal
+		}
+		
+		//And texture coords
+		for (int i = 0; i < verts.size(); i++) {
+			Vector3f pos = verts.get(i).pos;
+			texArr[2 * i] = (float)(Math.atan2(pos.y, pos.x) / (2*Math.PI) * 10);
+			texArr[2 * i + 1] = (float)(Math.atan2(pos.z, Math.sqrt(pos.x * pos.x + pos.y * pos.y)) / (2*Math.PI) * 10);
+		}
+		
+		int v0, v1, v2;
+		Vector3f d0 = new Vector3f(), d1 = new Vector3f();
 		for (int j = 0; j < interFaces.size(); j++) {
 			Face f = interFaces.get(j);
-			arr[3 * j] = verts.indexOf(f.v0);
-			arr[3 * j + 1] = verts.indexOf(f.v1);
-			arr[3 * j + 2] = verts.indexOf(f.v2);
+			v0 = verts.indexOf(f.v0);
+			v1 = verts.indexOf(f.v1);
+			v2 = verts.indexOf(f.v2);
+			arr[3 * j] = v0;
+			arr[3 * j + 1] = v1;
+			arr[3 * j + 2] = v2;
+			
+			d0.sub(f.v1.pos, f.v0.pos);
+			d1.sub(f.v2.pos, f.v0.pos);
+			d0.cross(d1, d0);
+			d0.normalize();
+			
+			norms[v0].add(d0);
+			norms[v1].add(d0);
+			norms[v2].add(d0);
 			//may need to play with winding order..
 		}
 		
-		//And store in the mesh's polygon data buffer.
-		mPolygonData = IntBuffer.wrap(arr);
+		//Go through and normalize normals (sums of adjacent edges).
+		for (int i = 0; i < norms.length; i++) {
+			//norms[i].set(verts.get(i).pos);
+			//norms[i].normalize();
+			
+			
+			if (norms[i].lengthSquared() == 0) {
+				norms[i].set(0.0f, 0.0f, 1.0f); // vert not in any interface edges
+			}
+			else {
+				norms[i].normalize();
+			}
+			
+			normArr[i * 3 + 0] = norms[i].x;
+			normArr[i * 3 + 1] = norms[i].y;
+			normArr[i * 3 + 2] = norms[i].z;
+			
+		}
 		
+		
+		//And store in the mesh's polygon and normal data buffer.
+		mPolygonData = IntBuffer.wrap(arr);
+		mNormalData = FloatBuffer.wrap(normArr);
+		mTexCoordData = FloatBuffer.wrap(texArr);
 		
 	}
 	
@@ -129,6 +202,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	@Override
 	public FloatBuffer calculateTangentVectors() {
 		// TODO Auto-generated method stub
+		
 		return null;
 	}
 

@@ -58,7 +58,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 		planetHM.createIcosa();
 		
 		
-		planetHM.subdivide(4);
+		planetHM.subdivide(5);
 		planetHM.randomize(mMinRadius, mMaxRadius);
 		planetHM.smooth(3);
 		planetHM.scale(mScale);
@@ -78,7 +78,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 		planetMesh.setVerts(verts);
 		
 		
-		for (int i = 0; i < trisHM.size(); i++) {
+		for (int i = 0; i < trisHM.size(); i+= 1) {
 			Triangle t = trisHM.get(i);
 			tets.add(t.v0);
 			tets.add(t.v1);
@@ -88,23 +88,46 @@ public class ProceduralPlanetSceneController extends SceneController {
 		
 		planetMesh.setTets(tets);
 		
-		//planetMesh = new TetMesh(1.0f); //test
+		
+		/*
+		
+		planetMesh = new TetMesh();
+		ArrayList<Vector3f> vt = new ArrayList<Vector3f>(4);
+		ArrayList<Integer> pt = new ArrayList<Integer>(4);
+		vt.add(new Vector3f(-1, -1, -1));
+		vt.add(new Vector3f(1, -1, -1));
+		vt.add(new Vector3f(0, 1, -1));
+		vt.add(new Vector3f(0, 0, 1));
+		pt.add(0);
+		pt.add(1);
+		pt.add(2);
+		pt.add(3);
+		planetMesh.setVerts(vt);
+		planetMesh.setTets(pt);
+		*/
+		
 		
 		planet.addMesh(planetMesh);
 		
+		
+		/* Add an unattenuated point light to provide overall illumination. */
+		PointLight light = new PointLight();
+		
+		light.setConstantAttenuation(1.0f);
+		light.setLinearAttenuation(0.0f);
+		light.setQuadraticAttenuation(0.0f);
+		
+		light.setPosition(new Point3f(10.0f, 0.0f, 0.0f));
+		light.setName("CameraLight");
+		
+		
 		try {
-			/* Add an unattenuated point light to provide overall illumination. */
-			PointLight light = new PointLight();
 			
-			light.setConstantAttenuation(1.0f);
-			light.setLinearAttenuation(0.0f);
-			light.setQuadraticAttenuation(0.0f);
 			
-			light.setPosition(new Point3f(0.0f, 10.0f, 0.0f));
-			light.setName("CameraLight");
 			mSceneRoot.addChild(light);	
 			
 			mSceneRoot.addChild(planet);
+			
 		} catch (ScenegraphException e) {
 			e.printStackTrace();
 			System.exit(-1);
