@@ -310,10 +310,33 @@ public class Renderer
 		AxisAngle4f cameraOrientation = new AxisAngle4f();
 		cameraOrientation.set(camera.transformOrientationToWorldSpace(new Quat4f(0.0f, 0.0f, 0.0f, 1.0f)));
 		
-		/* Apply the camera transform to OpenGL. */
-		gl.glScalef(cameraScale, cameraScale, cameraScale);
-		gl.glRotatef(cameraOrientation.angle * 180.0f / (float)Math.PI, -cameraOrientation.x, -cameraOrientation.y, -cameraOrientation.z);
-		gl.glTranslatef(-cameraPosition.x, -cameraPosition.y, -cameraPosition.z);
+		/*
+		if (camera.mIsPlanetCamera) {
+			glu.gluLookAt(cameraPosition.x, cameraPosition.y, cameraPosition.z, 
+				camera.forward.x, camera.forward.y, camera.forward.z, 
+				camera.up.x, camera.up.y, camera.up.z);
+		}
+		*/
+		/*
+		if (camera.mIsPlanetCamera) {
+			glu.gluLookAt(cameraPosition.x, cameraPosition.y, cameraPosition.z, 
+				cameraPosition.x + camera.forward.x, cameraPosition.y + camera.forward.y, cameraPosition.z + camera.forward.z, 
+				cameraPosition.x + camera.up.x, cameraPosition.y + camera.up.y, cameraPosition.z + camera.up.z);
+		}
+		*/
+		/*
+		if (camera.mIsPlanetCamera) {
+			glu.gluLookAt(cameraPosition.x, cameraPosition.y, cameraPosition.z, 
+				0.0f, 0.0f, -1.0f,
+				0.0f, 1.0f, 0.0f);
+		}
+		*/
+		//else {
+			/* Apply the camera transform to OpenGL. */
+			gl.glScalef(cameraScale, cameraScale, cameraScale);
+			gl.glRotatef(cameraOrientation.angle * 180.0f / (float)Math.PI, -cameraOrientation.x, -cameraOrientation.y, -cameraOrientation.z);
+			gl.glTranslatef(-cameraPosition.x, -cameraPosition.y, -cameraPosition.z);
+		//}
 		
 		/* Check for errors before rendering, to help isolate. */
 		OpenGLException.checkOpenGLError(gl);

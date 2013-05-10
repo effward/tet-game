@@ -9,6 +9,9 @@ import java.awt.event.MouseWheelEvent;
 import java.util.ArrayList;
 
 import javax.vecmath.AxisAngle4f;
+import javax.vecmath.GMatrix;
+import javax.vecmath.GVector;
+import javax.vecmath.Matrix3f;
 import javax.vecmath.Point3f;
 import javax.vecmath.Quat4f;
 import javax.vecmath.Vector3f;
@@ -26,14 +29,13 @@ import procedural.Vertex;
 public class ProceduralPlanetSceneController extends SceneController {
 
 	/* Keeps track of camera's orbit position. Latitude and longitude are in degrees. */
-	private float mCameraLongitude = 50.0f, mCameraLatitude = -40.0f;
+	private float mCameraLongitude = 0.0f, mCameraLatitude = 0.0f;
 	private float mCameraRadius = 15.0f;
 	private Point3f mCameraPosition = new Point3f();
-	private Quat4f mCameraOrientation = new Quat4f();
+	//private Quat4f mCameraOrientation = new Quat4f();
+	private float mCameraTheta = (float)(3.0f*Math.PI/2.0f), mCameraPhi = 0f;
 	private float mMinRadius = .5f, mMaxRadius = 1.5f, mScale = 5.0f;
-	private boolean mOrbitCameraMode = true;
-	private Robot robot;
-	
+	private boolean mOrbitCameraMode = true;	
 	
 	/* Used to calculate mouse deltas to orbit the camera in mouseDragged(). */ 
 	private Point mLastMouseDrag;
@@ -46,12 +48,6 @@ public class ProceduralPlanetSceneController extends SceneController {
 	
 	@Override
 	public void initializeScene() {
-		try {
-			robot = new Robot();
-		} catch (AWTException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
 
 		Geometry planet = new Geometry();
 		
@@ -92,24 +88,6 @@ public class ProceduralPlanetSceneController extends SceneController {
 		
 		planetMesh.setTets(tets);
 		
-		 
-		 
-		/*
-		planetMesh = new TetMesh();
-		ArrayList<Vector3f> vt = new ArrayList<Vector3f>(4);
-		ArrayList<Integer> pt = new ArrayList<Integer>(4);
-		vt.add(new Vector3f(-1, -1, -1));
-		vt.add(new Vector3f(1, -1, -1));
-		vt.add(new Vector3f(0, 1, -1));
-		vt.add(new Vector3f(0, 0, 1));
-		pt.add(0);
-		pt.add(1);
-		pt.add(2);
-		pt.add(3);
-		planetMesh.setVerts(vt);
-		planetMesh.setTets(pt);
-		*/
-		
 		//planetMesh = new TetMesh(1.0f); //test
 		
 		planet.addMesh(planetMesh);
@@ -134,18 +112,11 @@ public class ProceduralPlanetSceneController extends SceneController {
 		
 		/* Initialize camera position. */
 		updateCamera();
-		//robot.mouseMove(200,200);
-		//mCameraPosition = mCamera.getPosition();
-		mCameraOrientation = mCamera.getOrientation();
-		System.out.println("CameraPosition: (" + mCameraPosition.x + ", " + mCameraPosition.y + ", " + mCameraPosition.z + ")");
-		System.out.println("CameraWorldPosition: (" + mCamera.getWorldspacePosition().x + ", " + mCamera.getWorldspacePosition().y + ", " + mCamera.getWorldspacePosition().z + ")");
-
 	}
 	
 	protected void updateCamera()
 	{
-		System.out.println("CameraPosition: (" + mCameraPosition.x + ", " + mCameraPosition.y + ", " + mCameraPosition.z + ")");
-		System.out.println("CameraOrientation: (" + mCameraOrientation.x + ", " + mCameraOrientation.y + ", " + mCameraOrientation.z + ", " + mCameraOrientation.w + ")");
+		
 		if (mOrbitCameraMode) {
 			/* Compose the "horizontal" and "vertical" rotations. */
 			Quat4f longitudeQuat = new Quat4f();
@@ -159,14 +130,90 @@ public class ProceduralPlanetSceneController extends SceneController {
 			/* Set the camera's position so that it looks towards the origin. */
 			mCamera.setPosition(new Point3f(0.0f, 0.0f, mCameraRadius));
 			Util.rotateTuple(mCamera.getOrientation(), mCamera.getPosition());
-			//mCameraPosition = mCamera.getPosition();
-			mCameraOrientation = mCamera.getOrientation();
 		}
 		else {
-			Point3f worldPos = mCamera.transformPointToWorldSpace(mCameraPosition);
+			Point3f worldPos = mCamera.getPosition();//mCamera.transformPointToWorldSpace(mCameraPosition);
+			
+			Vector3f yPS = new Vector3f(worldPos);
+			yPS.normalize();
+			Vector3f yWS = new Vector3f(0f, 1f, 0f);
+			Vector3f xPS = new Vector3f();
+			xPS.cross(yWS, yPS);
+			Vector3f zPS = new Vector3f();
+			zPS.cross(xPS, yPS);
+			
+			Vector3f fwd = new Vector3f(
+					(float)(Math.cos(mCameraTheta) * Math.cos(mCameraPhi)),
+					(float)Math.sin(mCameraPhi),
+					(float)(Math.sin(mCameraTheta) * Math.cos(mCameraPhi))
+			);
+			
+			Vector3f left = new Vector3f(
+					(float) Math.cos(mCameraTheta + Math.PI/2.0f),
+					0.0f,
+					(float) Math.sin(mCameraTheta + Math.PI/2.0f)
+			);
+			
+			GVector fwdG = new GVector(fwd);
+			
+			Vector3f up = new Vector3f();
+			up.cross(left, fwd);
+
+			GVector upG = new GVector(up);
+			
+			GMatrix worldSpaceTransform = new GMatrix(3,3);
+			worldSpaceTransform.setColumn(0, new GVector(xPS));
+			worldSpaceTransform.setColumn(1, new GVector(yPS));
+			worldSpaceTransform.setColumn(2, new GVector(zPS));
+			
+			GVector fwdWS = new GVector(3);
+			fwdWS.mul(worldSpaceTransform, fwdG);
+			GVector upWS = new GVector(3);
+			upWS.mul(worldSpaceTransform, upG);
+			
+			//set fwd, up to fwdG, upG
+			
+			//mCamera.forward = new Vector3f((float)fwdWS.getElement(0), (float)fwdWS.getElement(1), (float)fwdWS.getElement(2));
+			//mCamera.up = new Vector3f((float)upWS.getElement(0), (float)upWS.getElement(1), (float)upWS.getElement(2));
+			
+			mCamera.forward = fwd;//new Vector3f(fwdX, fwdY, fwdZ);
+			mCamera.up = up;//upTemp;
+			Vector3f upW = new Vector3f(0f,1f,0f);
+			Vector3f upAdjustAxis = new Vector3f();
+			upAdjustAxis.cross(up, upW);
+			float upAngle = (float) Math.acos(up.dot(upW));
+			
+			AxisAngle4f upAdjust = new AxisAngle4f(upAdjustAxis, upAngle);
+			
+			float leftAngle = (float) Math.acos(left.dot(new Vector3f(-1f, 0f,0f)));
+			
+			AxisAngle4f leftAdjust = new AxisAngle4f(upW, leftAngle);
+			
+			Quat4f upQuat = new Quat4f();
+			upQuat.set(upAdjust);
+			
+			Quat4f leftQuat = new Quat4f();
+			leftQuat.set(leftAdjust);
+			
+			Quat4f combo = new Quat4f();
+			combo.mul(upQuat, leftQuat);
+			
+			mCamera.setOrientation(combo);
+			
+			System.out.println("***************************************************");
+			System.out.println("CameraWorldPosition: " + worldPos);
+			System.out.println("CameraOrientation: " + mCamera.getOrientation());
+			System.out.println("fwd: " + fwd);
+			System.out.println("left: " + left);
+			System.out.println("up: " + up);
+			System.out.println("upAdjustAxis: " + upAdjustAxis);
+			System.out.println("upAngle: " + upAngle);
+			System.out.println("leftAngle: " + leftAngle);
+			System.out.println("upQuat: " + upQuat);
+			System.out.println("leftQuat: " + leftQuat);
+			System.out.println("combo: " + combo);
+			
 			/*
-			Vector3f up = new Vector3f(worldPos);
-			up.normalize();
 			Vector3f worldCameraUp = new Vector3f(mCamera.transformPointToWorldSpace(new Point3f(0f,1f,0f)));
 			worldCameraUp.normalize();
 			Vector3f worldCameraLeft = new Vector3f(mCamera.transformPointToWorldSpace(new Point3f(1f,0f,0f)));
@@ -192,9 +239,10 @@ public class ProceduralPlanetSceneController extends SceneController {
 			
 			mCamera.setOrientation(combo);
 			*/
-			mCamera.setOrientation(mCameraOrientation);
 			mCamera.setPosition(worldPos);
 			mCameraPosition.scale(0);
+			
+			System.out.println("CameraPosition: " + mCamera.getPosition());
 		}
 	}
 	
@@ -235,10 +283,14 @@ public class ProceduralPlanetSceneController extends SceneController {
 	public void keyTyped(KeyEvent key) {
 		char c = key.getKeyChar();
 		if (c == 'o' || c == 'O') {
-			if (mOrbitCameraMode)
+			if (mOrbitCameraMode) {
 				mOrbitCameraMode = false;
-			else
+				mCamera.mIsPlanetCamera = true;
+			}
+			else {
 				mOrbitCameraMode = true;
+				mCamera.mIsPlanetCamera = false;
+			}
 		}
 		if (c == 'p' || c == 'P') {
 			System.exit(0);
@@ -262,37 +314,6 @@ public class ProceduralPlanetSceneController extends SceneController {
 		/* Remember the starting point of a drag. */
 		mLastMouseDrag = mouse.getPoint();
 	}
-	
-	@Override
-	public void mouseMoved(MouseEvent mouse) {
-		
-		//float deltaX = -(mouse.getPoint().x);
-		//float deltaY = -(mouse.getPoint().y);
-		if(mOrbitCameraMode) {
-			mLastMousePos = mouse.getPoint();
-		}
-		else {
-			if (mouse.getPoint() != null) {
-				float deltaX = -(mouse.getPoint().x - mLastMousePos.x);
-				float deltaY = -(mouse.getPoint().y - mLastMousePos.y);
-				mLastMousePos = mouse.getPoint();
-				System.out.println("DeltaX = " + deltaX);
-				System.out.println("DeltaY = " + deltaY);
-				
-				float scale = 0.1f;
-				
-				Quat4f horiz = Util.quatFromAngle(0.0f, 1.0f, 0.0f, deltaX*scale*(float)Math.PI/180f);
-				Quat4f vert = Util.quatFromAngle(1.0f, 0.0f, 0.0f, deltaY*scale*(float)Math.PI/180f);
-				
-				mCameraOrientation.mul(horiz, mCameraOrientation);
-				mCameraOrientation.mul(vert, mCameraOrientation);
-				updateCamera();
-				requiresRender();
-			}
-		}
-		//robot.mouseMove(200, 200);
-	}
-	
 	
 	
 	@Override
@@ -329,6 +350,42 @@ public class ProceduralPlanetSceneController extends SceneController {
 			updateCamera();
 			
 			requiresRender();
+		}
+		else {
+			if (mouse.getPoint() != null) {
+				float deltaX = -(mouse.getPoint().x - mLastMouseDrag.x);
+				float deltaY = -(mouse.getPoint().y - mLastMouseDrag.y);
+				mLastMouseDrag = mouse.getPoint();
+				System.out.println("DeltaX = " + deltaX);
+				System.out.println("DeltaY = " + deltaY);
+				
+				float scale = 0.001f;
+				
+				//Quat4f horiz = Util.quatFromAngle(0.0f, 1.0f, 0.0f, deltaX*scale*(float)Math.PI/180f);
+				//Quat4f vert = Util.quatFromAngle(1.0f, 0.0f, 0.0f, deltaY*scale*(float)Math.PI/180f);
+				
+				//mCameraOrientation.mul(horiz, mCameraOrientation);
+				//mCameraOrientation.mul(vert, mCameraOrientation);
+				
+				mCameraTheta += deltaX*scale;
+				mCameraPhi += deltaY*scale;
+				System.out.println("Theta: " + mCameraTheta);
+				System.out.println("Phi: " + mCameraPhi);
+				System.out.println("Camfwd: " + mCamera.forward);
+				System.out.println("Camup: " + mCamera.up);
+				/*
+				if (mCameraTheta >= (float)Math.PI * 2f)
+					mCameraTheta = mCameraTheta - (float)Math.PI * 2f;
+				else if (mCameraTheta < 0)
+					mCameraTheta = (float)Math.PI * 2f - mCameraTheta;
+					*/
+				if (mCameraPhi > (float)Math.PI/2)
+					mCameraPhi = (float)Math.PI/2;
+				else if (mCameraPhi < -(float)Math.PI/2)
+					mCameraPhi = -(float)Math.PI/2;
+				updateCamera();
+				requiresRender();
+			}
 		}
 	}
 

@@ -1,6 +1,7 @@
 package cs5625.deferred.rendering;
 
 import javax.vecmath.Matrix4f;
+import javax.vecmath.Vector3f;
 
 import cs5625.deferred.scenegraph.SceneObject;
 
@@ -23,6 +24,9 @@ public class Camera extends SceneObject
 	private float mFOV = 45.0f;
 	private float mNear = 0.1f;
 	private float mFar = 100.0f;
+	public Vector3f forward;
+	public Vector3f up;
+	public boolean mIsPlanetCamera = false;
 	
 	private boolean mIsShadowMapCamera = false;
 	
