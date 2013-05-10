@@ -36,6 +36,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 	private float mCameraTheta = (float)(3.0f*Math.PI/2.0f), mCameraPhi = 0f;
 	private float mMinRadius = .5f, mMaxRadius = 1.5f, mScale = 5.0f;
 	private boolean mOrbitCameraMode = true;	
+	private float mCameraForward = 0f, mCameraLeft = 0f;
 	
 	/* Used to calculate mouse deltas to orbit the camera in mouseDragged(). */ 
 	private Point mLastMouseDrag;
@@ -179,12 +180,15 @@ public class ProceduralPlanetSceneController extends SceneController {
 					(float)(Math.sin(mCameraTheta) * Math.cos(mCameraPhi))
 			);
 			
+			fwd.normalize();
+			
 			Vector3f left = new Vector3f(
 					(float) Math.cos(mCameraTheta + Math.PI/2.0f),
 					0.0f,
 					(float) Math.sin(mCameraTheta + Math.PI/2.0f)
 			);
 			
+			left.normalize();
 			GVector fwdG = new GVector(fwd);
 			
 			Vector3f up = new Vector3f();
@@ -206,8 +210,16 @@ public class ProceduralPlanetSceneController extends SceneController {
 			//set fwd, up to fwdG, upG
 			
 			Vector3f upWS2 = new Vector3f((float)upWS.getElement(0), (float)upWS.getElement(1), (float)upWS.getElement(2));
+			Vector3f fwdWS2 = new Vector3f((float)fwdWS.getElement(0), (float)fwdWS.getElement(1), (float)fwdWS.getElement(2));
 			
-			mCamera.forward = new Vector3f((float)fwdWS.getElement(0), (float)fwdWS.getElement(1), (float)fwdWS.getElement(2));
+			upWS2.normalize();
+			fwdWS2.normalize();
+			
+			Vector3f leftWS2 = new Vector3f();
+			leftWS2.cross(fwdWS2, upWS2);
+			leftWS2.normalize();
+			
+			mCamera.forward = fwdWS2;
 			mCamera.up = upWS2;
 			
 			//mCamera.forward = fwd;//new Vector3f(fwdX, fwdY, fwdZ);
@@ -242,8 +254,12 @@ public class ProceduralPlanetSceneController extends SceneController {
 			System.out.println("CameraWorldPosition: " + worldPos);
 			System.out.println("CameraOrientation: " + mCamera.getOrientation());
 			System.out.println("fwd: " + fwd);
+			System.out.println("fwdWS: " + fwdWS2);
 			System.out.println("left: " + left);
+			System.out.println("leftWS: " + leftWS2);
 			System.out.println("up: " + up);
+			System.out.println("upWS: " + upWS2);
+			
 			/*
 			System.out.println("upAdjustAxis: " + upAdjustAxis);
 			System.out.println("upAngle: " + upAngle);
@@ -279,9 +295,17 @@ public class ProceduralPlanetSceneController extends SceneController {
 			
 			mCamera.setOrientation(combo);
 			*/
+			
+			//leftWS2.scale(mCameraLeft);
+			//fwdWS2.scale(mCameraForward);
+			//worldPos.add(leftWS2);
+			//worldPos.add(fwdWS2);
 			worldPos.add(mCameraPosition);
+			System.out.println("CameraWorldPos after move: " + worldPos);
 			mCamera.setPosition(worldPos);
 			mCameraPosition.scale(0);
+			mCameraLeft = 0f;
+			mCameraForward = 0f;
 			
 			System.out.println("CameraPosition: " + mCamera.getPosition());
 		}
@@ -296,19 +320,23 @@ public class ProceduralPlanetSceneController extends SceneController {
 		else {
 			if(c == KeyEvent.VK_W) {
 				mCameraPosition.z -= 0.1f;
-				System.out.println("W");
+				mCameraForward += 0.1f;
+				//System.out.println("W");
 			}
 			else if(c == KeyEvent.VK_S) {
 				mCameraPosition.z += 0.1f;
-				System.out.println("S");
+				mCameraForward -= 0.1f;
+				//System.out.println("S");
 			}
 			else if (c == KeyEvent.VK_A) {
 				mCameraPosition.x -= 0.1f;
-				System.out.println("A");
+				mCameraLeft -= 0.1f;
+				//System.out.println("A");
 			}
 			else if (c == KeyEvent.VK_D) {
 				mCameraPosition.x += 0.1f;
-				System.out.println("D");
+				mCameraLeft += 0.1f;
+				//System.out.println("D");
 			}
 			updateCamera();
 			requiresRender();
