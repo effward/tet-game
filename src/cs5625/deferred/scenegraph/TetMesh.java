@@ -56,6 +56,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	/** Set the tetrahedrons of this TetMesh to the given list of tets 
 	 * (in v0, v1, v2, v3 int order). */
 	public void setTets(ArrayList<Integer> tets) {
+		System.out.println("setting tets"); //TODO remove
 		this.tets = new ArrayList<Tet>(tets.size() / 4);
 		for (int i = 0; i < tets.size() / 4; i++) {
 			Vert v0 = verts.get(tets.get(4 * i));
@@ -75,6 +76,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	 * at boundaries where a Face has only one adjacent Tet.
 	 */
 	private void createSurface() {
+		System.out.println("creating surface..."); //TODO remove
 		//Go through and find all faces which are interfaces between different materials
 		//or are boundaries at the edge of the tetmesh.
 		ArrayList<Face> interFaces = new ArrayList<Face>(10);
