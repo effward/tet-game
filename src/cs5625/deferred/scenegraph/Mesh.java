@@ -29,11 +29,13 @@ import cs5625.deferred.misc.OpenGLResourceObject;
  */
 public abstract class Mesh implements OpenGLResourceObject
 {
+	String mName = "";
+	
 	protected static float EPS = 1e-7f;
 	
 	/* Material and name of this mesh. */
-	private Material mMaterial = new BlinnPhongMaterial();
-	private String mName = "";
+	//private Material mMaterial = new BlinnPhongMaterial();
+	//private String mName = "";
 	
 	/* Buffers to hold vertex and polygon index data. Buffer formats are 
 	 * described in the comments for the getter and setter methods, 
@@ -207,39 +209,8 @@ public abstract class Mesh implements OpenGLResourceObject
 	 * different names and materials but only one set of float buffers for all instances.
 	 */
 	public abstract Mesh clone();
-
-	/**
-	 * Returns the name of this mesh, which can be specified by a model file or set in code.
-	 * Meshes can be retrieved by name out of a `Geometry` object. 
-	 */
-	public String getName()
-	{
-		return mName;
-	}
 	
-	/**
-	 * Sets the name of this mesh.
-	 */
-	public void setName(String name)
-	{
-		mName = name;
-	}
-
-	/**
-	 * Returns the material used to render this mesh.
-	 */
-	public Material getMaterial()
-	{
-		return mMaterial;
-	}
-
-	/**
-	 * Sets the material used to render this mesh. Must not be null.
-	 */
-	public void setMaterial(Material mat)
-	{
-		mMaterial = mat;
-	}
+	
 	
 	/**
 	 * Returns the number of vertices in this mesh.
@@ -371,8 +342,15 @@ public abstract class Mesh implements OpenGLResourceObject
 	/** 
 	 * Releases OpenGL resources owned by this mesh or its material.
 	 */
-	public void releaseGPUResources(GL2 gl)
-	{
-		mMaterial.releaseGPUResources(gl);
+	public abstract void releaseGPUResources(GL2 gl);
+
+	public String getName() {
+		return mName;
 	}
+	
+	public void setName(String name) {
+		mName = name;
+	}
+	
+	public abstract Material getMaterial();
 }

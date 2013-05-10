@@ -5,6 +5,7 @@ import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
 
+import javax.media.opengl.GL2;
 import javax.media.opengl.glu.GLU;
 import javax.vecmath.Color3f;
 import javax.vecmath.Vector3f;
@@ -12,6 +13,7 @@ import javax.vecmath.Vector3f;
 import com.jogamp.common.nio.Buffers;
 
 import cs5625.deferred.materials.BlinnPhongMaterial;
+import cs5625.deferred.materials.Material;
 import cs5625.deferred.materials.Texture2D;
 import cs5625.deferred.misc.OpenGLResourceObject;
 
@@ -20,24 +22,19 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	private ArrayList<Vert> verts;
 	private ArrayList<Face> faces;
 	private ArrayList<Tet> tets;
+	private ArrayList<Material> mats; 
 	
 	/** A new empty TetMesh. */
 	public TetMesh() {
 		verts = new ArrayList<Vert>(10);
 		faces = new ArrayList<Face>(10);
 		tets = new ArrayList<Tet>(10);
-
-		BlinnPhongMaterial mat = new BlinnPhongMaterial();
-		try {
-			Texture2D rock = Texture2D.load(GLU.getCurrentGL().getGL2(), "textures/Rock.png");
-			mat.setDiffuseTexture(rock);
-		}
-		catch(Exception e) {
-			System.out.println(e);
-		}
-		mat.setSpecularColor(new Color3f(0.0f, 0.0f, 0.0f));
-		setMaterial(mat);
-		//mat.setDiffuseTexture(new Texture2D)
+		mats = new ArrayList<Material>(2);
+	}
+	
+	/** Set the materials of this TetMesh to the given list of materials. */
+	public void setMats(ArrayList<Material> mats) {
+		this.mats = mats;
 	}
 	
 	/** Set the vertices of this TetMesh to the given list of verts. */
@@ -56,7 +53,6 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	/** Set the tetrahedrons of this TetMesh to the given list of tets 
 	 * (in v0, v1, v2, v3 int order). */
 	public void setTets(ArrayList<Integer> tets) {
-		System.out.println("setting tets"); //TODO remove
 		this.tets = new ArrayList<Tet>(tets.size() / 4);
 		for (int i = 0; i < tets.size() / 4; i++) {
 			Vert v0 = verts.get(tets.get(4 * i));
@@ -64,7 +60,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			Vert v2 = verts.get(tets.get(4 * i + 2));
 			Vert v3 = verts.get(tets.get(4 * i + 3));
 			
-			Tet t = new Tet(v0, v1, v2, v3, 1);
+			Tet t = new Tet(v0, v1, v2, v3, 0);
 			this.tets.add(t);
 		}
 		createSurface();
@@ -76,7 +72,6 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	 * at boundaries where a Face has only one adjacent Tet.
 	 */
 	private void createSurface() {
-		System.out.println("creating surface..."); //TODO remove
 		//Go through and find all faces which are interfaces between different materials
 		//or are boundaries at the edge of the tetmesh.
 		ArrayList<Face> interFaces = new ArrayList<Face>(10);
@@ -120,6 +115,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			arr[3 * j + 1] = v1;
 			arr[3 * j + 2] = v2;
 			
+			//find normal for that face
 			d0.sub(f.v1.pos, f.v0.pos);
 			d1.sub(f.v2.pos, f.v0.pos);
 			d0.cross(d1, d0);
@@ -348,5 +344,17 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 				((this.v2 == t.v0) || (this.v2 == t.v1) || (this.v2 == t.v2) || (this.v2 == t.v3)) &&
 				((this.v3 == t.v0) || (this.v3 == t.v1) || (this.v3 == t.v2) || (this.v3 == t.v3));
 		}
+	}
+
+	@Override
+	public void releaseGPUResources(GL2 gl) {
+		for (Material m: mats) {
+			m.releaseGPUResources(gl);
+		}
+	}
+
+	@Override
+	public Material getMaterial() {
+		return mats.get(0);
 	}
 }

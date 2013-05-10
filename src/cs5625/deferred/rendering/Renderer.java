@@ -633,7 +633,7 @@ public class Renderer
 		bindRequiredMeshAttributes(gl, mesh);
 		
 		//Only render front polys
-		gl.glPolygonMode(GL2.GL_BACK, GL2.GL_FILL);
+		gl.glPolygonMode(GL2.GL_FRONT, GL2.GL_LINE);
 		
 		/* Render polygons. */
 		gl.glDrawElements(getOpenGLPrimitiveType(mesh.getVerticesPerPolygon()), 

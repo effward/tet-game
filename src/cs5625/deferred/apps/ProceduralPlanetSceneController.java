@@ -6,11 +6,16 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.util.ArrayList;
 
+import javax.media.opengl.glu.GLU;
 import javax.vecmath.AxisAngle4f;
+import javax.vecmath.Color3f;
 import javax.vecmath.Point3f;
 import javax.vecmath.Quat4f;
 import javax.vecmath.Vector3f;
 
+import cs5625.deferred.materials.BlinnPhongMaterial;
+import cs5625.deferred.materials.Material;
+import cs5625.deferred.materials.Texture2D;
 import cs5625.deferred.misc.ScenegraphException;
 import cs5625.deferred.misc.Util;
 import cs5625.deferred.scenegraph.Geometry;
@@ -81,6 +86,21 @@ public class ProceduralPlanetSceneController extends SceneController {
 		
 		planetMesh.setTets(tets);
 		
+		ArrayList<Material> mats = new ArrayList<Material>(1);
+		BlinnPhongMaterial mat = new BlinnPhongMaterial();
+		try {
+			Texture2D rock = Texture2D.load(GLU.getCurrentGL().getGL2(), "textures/Rock.png");
+			mat.setDiffuseTexture(rock);
+			//Texture2D tile = Texture2D.load(GLU.getCurrentGL().getGL2(), "textures/tile.jpg");
+			//mat.setSpecularTexture(tile);
+		}
+		catch(Exception e) {
+			System.out.println(e);
+		}
+		mat.setSpecularColor(new Color3f(0.0f, 0.0f, 0.0f));
+		mats.add(mat);
+		
+		planetMesh.setMats(mats);
 		
 		/*
 		
@@ -161,7 +181,13 @@ public class ProceduralPlanetSceneController extends SceneController {
 	
 	@Override
 	public void keyTyped(KeyEvent key) {
-		
+		char c = key.getKeyChar();
+		if (c == 'w')
+		{
+			System.out.println("w");
+			mRenderer.setRenderWireframes(!mRenderer.getRenderWireframes());
+			requiresRender();
+		}
 	}
 	
 
