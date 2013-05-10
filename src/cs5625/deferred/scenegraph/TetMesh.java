@@ -59,6 +59,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		System.out.println("setting tets"); //TODO remove
 		this.tets = new ArrayList<Tet>(tets.size() / 4);
 		for (int i = 0; i < tets.size() / 4; i++) {
+			if (i % 100 == 0) System.out.println(i); //TODO remove
 			Vert v0 = verts.get(tets.get(4 * i));
 			Vert v1 = verts.get(tets.get(4 * i + 1));
 			Vert v2 = verts.get(tets.get(4 * i + 2));
@@ -86,8 +87,8 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			}
 		}
 		
-		System.out.println("Faces: " + faces.size());
-		System.out.println("Shown faces: " + interFaces.size());
+		System.out.println("Faces: " + faces.size()); //TODO remove
+		System.out.println("Shown faces: " + interFaces.size()); //TODO remove
 		
 		//Copy these into an actual array now we know the number of faces required.
 		int[] arr = new int[interFaces.size() * 3];
@@ -163,14 +164,16 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	 * @param f - the Face to check.
 	 * @return the Face with the same verts, or null if one does not exist.
 	 */
-	public Face hasFace(Face f) {		
-		for (Face a : f.v0.faces) {
-			if (a.equals(f)) return a;
-		}
-		for (Face a : f.v1.faces) {
-			if (a.equals(f)) return a;
-		}
-		for (Face a : f.v2.faces) {
+	public Face hasFace(Face f) {	
+		//int i = 0;
+		ArrayList<Face> check; //the smallest face list of the three verts
+		check = (f.v0.faces.size() < f.v1.faces.size() ? 
+				(f.v0.faces.size() < f.v2.faces.size() ? f.v0.faces : f.v2.faces) : 
+				(f.v1.faces.size() < f.v2.faces.size() ? f.v1.faces : f.v2.faces)
+		);
+		
+		for (Face a : check) {
+			//i++; System.out.println(i);
 			if (a.equals(f)) return a;
 		}
 		return null;
