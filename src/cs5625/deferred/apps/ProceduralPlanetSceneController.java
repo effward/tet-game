@@ -159,7 +159,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 		
 		light2.setConstantAttenuation(1.0f);
 		light2.setLinearAttenuation(0.0f);
-		light2.setQuadraticAttenuation(0.1f);
+		light2.setQuadraticAttenuation(0.5f);
 		
 		light2.setPosition(new Point3f(0.0f, 0.0f, 0.0f));
 		light2.setName("CameraLight");
@@ -167,9 +167,8 @@ public class ProceduralPlanetSceneController extends SceneController {
 		try {
 			mSceneRoot.addChild(mCamera);
 			
-			mCamera.addChild(light2);
-			//mSceneRoot.addChild(light);	
-			//mSceneRoot.addChild(light2);
+			mCamera.addChild(light2); //light follows the player around
+			mSceneRoot.addChild(light);	
 			mSceneRoot.addChild(planet);
 			
 			

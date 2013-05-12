@@ -959,7 +959,7 @@ public class Renderer
 			gl.glUniform1i(mUberShader.getUniformLocation(gl, "MaterialParams1Buffer"), 2);
 			gl.glUniform1i(mUberShader.getUniformLocation(gl, "MaterialParams2Buffer"), 3);
 			gl.glUniform1i(mUberShader.getUniformLocation(gl, "SilhouetteBuffer"), 4);
-			gl.glUniform3f(mUberShader.getUniformLocation(gl, "SkyColor"), 0.4f, 0.8f, 1.0f);
+			gl.glUniform3f(mUberShader.getUniformLocation(gl, "SkyColor"), 0.0f, 0.1f, 0.25f);
 			gl.glUniform1i(mUberShader.getUniformLocation(gl, "ShadowMap"), mShadowTextureLocation);
 			mUberShader.unbind(gl);			
 			

@@ -4,10 +4,14 @@ import java.io.IOException;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
 import javax.media.opengl.GL2;
 import javax.media.opengl.glu.GLU;
 import javax.vecmath.Color3f;
+import javax.vecmath.Point3f;
 import javax.vecmath.Vector3f;
 
 import com.jogamp.common.nio.Buffers;
@@ -22,10 +26,15 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	private ArrayList<Vert> verts;
 	private ArrayList<Face> faces;
 	private ArrayList<Tet> tets;
-	private ArrayList<Material> mats; 
-	
+	private ArrayList<Material> mats;
 	private ArrayList<Face> interfaces;
 	private ArrayList<Face> boundaries;
+
+	private TreeNode root;
+	private int kdCutoff = 100;
+	private Point3f mUpperRight, mLowerLeft;
+	private float epsilon = 0.00000000001f;
+
 	
 	/** A new empty TetMesh. */
 	public TetMesh() {
@@ -38,19 +47,215 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	/** Set the materials of this TetMesh to the given list of materials. */
 	public void setMats(ArrayList<Material> mats) {
 		this.mats = mats;
+
+		mUpperRight = new Point3f();
+		mLowerLeft = new Point3f();
+		
+		BlinnPhongMaterial mat = new BlinnPhongMaterial();
+		try {
+			Texture2D rock = Texture2D.load(GLU.getCurrentGL().getGL2(), "textures/Rock.png");
+			mat.setDiffuseTexture(rock);
+		}
+		catch(Exception e) {
+			System.out.println(e);
+		}
+		mat.setSpecularColor(new Color3f(0.0f, 0.0f, 0.0f));
+
+		//mat.setDiffuseTexture(new Texture2D)
+		//root = buildKDTree();
+		//printKDTree();
 	}
+	
+	private void printKDTree() {
+		printHelper(root, 0);
+	}
+	
+	private void printHelper(TreeNode node, int depth) {
+		if (depth > 2) return;
+		System.out.println("Depth: " + depth);
+		System.out.println("UpperRight: " + node.upperRight);
+		System.out.println("LowerLeft: " + node.lowerLeft);
+		System.out.println("Faces: " + node.faces);
+		System.out.println("^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+		if (node.left != null)
+			printHelper(node.left, depth+1);
+		if (node.right != null)
+			printHelper(node.right, depth+1);
+		System.out.println("*****************************");
+	}
+	
+	private TreeNode buildKDTree() {
+		ArrayList<Face> all_faces = new ArrayList<Face>(interfaces);
+		//System.out.println("Starting KD Tree Construction...");
+		//System.out.println(all_faces.size() + " faces to be added");
+		return kdTreeHelper(all_faces, 0, mUpperRight, mLowerLeft);
+	}
+	
+	private TreeNode kdTreeHelper(ArrayList<Face> f, int depth, Point3f upRight, Point3f lowLeft) {
+		if (f.size() <= 0 || depth >= kdCutoff) {
+			//System.out.println("Faces empty or cutoff reached");
+			return null;
+		}
+		else if (f.size() == 1) {
+			TreeNode node = new TreeNode();
+			node.upperRight = upRight;
+			node.lowerLeft = lowLeft;
+			node.faces = f;
+			//System.out.println("Leaf Created with one face: " + node.faces);
+			return node;
+		}
+		//System.out.println("Depth: " + depth);
+		//System.out.println("UpperRight: " + upRight);
+		//System.out.println("LowerLeft: " + lowLeft);
+		//System.out.println("Number of Faces: " + f.size());
+		//System.out.println("Faces: " + f);
+		
+		
+		int axis;
+		float midpoint;
+		
+		axis = depth % 3;
+		boolean splitPointless;
+		int tries = 1;
+		TreeNode node = new TreeNode();
+		node.upperRight = upRight;
+		node.lowerLeft = lowLeft;
+		ArrayList<Face> leftList = new ArrayList<Face>();
+		ArrayList<Face> rightList = new ArrayList<Face>();
+		Point3f leftUpRight, rightLowLeft;
+		do {
+			splitPointless = false;
+			Collections.sort(f, new FaceComparator(axis));
+			
+			int median = f.size() / 2;
+			
+			if (f.size() % 2 == 0) {
+				Point3f left = f.get(median-1).center;
+				Point3f right = f.get(median).center;
+	
+				if (axis == 0)
+					midpoint = (left.x + right.x) / 2f;
+				else if (axis == 1)
+					midpoint = (left.y + right.y) / 2f;
+				else
+					midpoint = (left.z + right.z) / 2f;
+			}
+			else {
+				if (axis == 0)
+					midpoint = f.get(median).center.x;
+				else if (axis == 1)
+					midpoint = f.get(median).center.y;
+				else
+					midpoint = f.get(median).center.z; 
+			}
+			//System.out.println("axis: " + axis);
+			//System.out.println("midpt: " + midpoint);
+			//System.out.println("^^^^^^^^^^^^^^");
+			
+
+			if (axis == 0) {
+				leftUpRight = new Point3f(midpoint, upRight.y, upRight.z);
+				rightLowLeft = new Point3f(midpoint, lowLeft.y, lowLeft.z);
+				if(upRight.x == midpoint || lowLeft.x == midpoint)
+					splitPointless = true;
+			}
+			else if (axis == 1){
+				leftUpRight = new Point3f(upRight.x, midpoint, upRight.z);
+				rightLowLeft = new Point3f(lowLeft.x, midpoint, lowLeft.z);
+				if(upRight.y == midpoint || lowLeft.y == midpoint)
+					splitPointless = true;
+			}
+			else {
+				leftUpRight = new Point3f(upRight.x, upRight.y, midpoint);
+				rightLowLeft = new Point3f(lowLeft.x, lowLeft.y, midpoint);
+				if(upRight.z == midpoint || lowLeft.z == midpoint)
+					splitPointless = true;
+			}
+			if (splitPointless) {
+				axis = (axis + 1) % 3;
+				tries++;
+			}
+		} while (splitPointless && tries < 4);
+		
+		if (tries == 4) {
+			node.upperRight = upRight;
+			node.lowerLeft = lowLeft;
+			node.faces = f;
+			return node;
+		}
+		
+		float volume = (upRight.x - lowLeft.x) * (upRight.y - lowLeft.y)* (upRight.z - lowLeft.z); 
+		boolean smallerFound = false;
+		
+		for(int i = 0; i < f.size(); i++) {
+			Point3f left = f.get(i).lowerLeft;
+			Point3f right = f.get(i).upperRight;
+			float faceVolume = (right.x - left.x) * (right.y - left.y) * (right.z - left.z); 
+			if (faceVolume < volume)
+				smallerFound = true;
+			if (axis == 0) {
+				if (left.x <= midpoint)
+					leftList.add(f.get(i));
+				if (right.x > midpoint)
+					rightList.add(f.get(i));
+			}
+			else if (axis == 1) {
+				if (left.y <= midpoint)
+					leftList.add(f.get(i));
+				if (right.y > midpoint)
+					rightList.add(f.get(i));
+			}
+			else {
+				if (left.z <= midpoint)
+					leftList.add(f.get(i));
+				if (right.z > midpoint)
+					rightList.add(f.get(i));
+			}
+		}
+		boolean listsIdentical = false;
+		if (leftList.size() == rightList.size()) {
+			listsIdentical = true;
+			for (int i = 0; i < leftList.size(); i++) {
+				if (!leftList.contains(rightList.get(i))) {
+					listsIdentical = false;
+					break;
+				}
+			}
+		}
+		if (smallerFound && !listsIdentical) {
+			node.left = kdTreeHelper(leftList, depth+1, leftUpRight, lowLeft);	
+			node.right = kdTreeHelper(rightList, depth+1, upRight, rightLowLeft);
+		}
+		
+		if (node.left == null && node.right == null) { //this is a leaf node
+			node.faces = f;
+		}
+		//System.out.println("**********************");
+		return node;
+	}
+	
 	
 	/** Set the vertices of this TetMesh to the given list of verts. */
 	public void setVerts(ArrayList<Vector3f> verts) {
 		this.verts = new ArrayList<Vert>(verts.size());
 		this.mVertexData = Buffers.newDirectFloatBuffer(verts.size() * 3);
 		int i = 0;
+		float maxX = Float.MIN_VALUE, maxY = Float.MIN_VALUE, maxZ = Float.MIN_VALUE;
+		float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, minZ = Float.MAX_VALUE;
 		for (Vector3f v : verts) {
 			this.verts.add(new Vert(v));
 			mVertexData.put(i++, v.x);
 			mVertexData.put(i++, v.y);
 			mVertexData.put(i++, v.z);
+			maxX = Math.max(maxX, v.x);
+			maxY = Math.max(maxY, v.y);
+			maxZ = Math.max(maxZ, v.z);
+			minX = Math.min(minX, v.x);
+			minY = Math.min(minY, v.y);
+			minZ = Math.min(minZ, v.z);
 		}
+		mUpperRight = new Point3f(maxX, maxY, maxZ);
+		mLowerLeft = new Point3f(minX, minY, minZ);
 	}
 	
 	/** Set the tetrahedrons of this TetMesh to the given list of tets 
@@ -67,6 +272,8 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			this.tets.add(t);
 		}
 		createSurface();
+		root = buildKDTree();
+		//printKDTree();
 		
 	}
 	
@@ -122,6 +329,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		Vector3f d0 = new Vector3f(), d1 = new Vector3f();
 		for (int j = 0; j < boundaries.size(); j++) {
 			Face f = boundaries.get(j);
+			
 			v0 = verts.indexOf(f.v0);
 			v1 = verts.indexOf(f.v1);
 			v2 = verts.indexOf(f.v2);
@@ -264,11 +472,66 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		}
 	}
 	
+	private class TreeNode {
+		public Point3f upperRight, lowerLeft;
+		public TreeNode left;
+		public TreeNode right;
+		public ArrayList<Face> faces;
+
+	}
+	
+	private class FaceComparator implements Comparator<Face> {
+		private int axis;
+		
+		public FaceComparator(int a) {
+			if (a < 0 || a > 2)
+				axis = 0;
+			else
+				axis = a;
+		}
+		@Override
+		public int compare(Face o1, Face o2) {
+			if (axis == 0) {
+				float x1 =o1.center.x;
+				float x2 = o2.center.x;
+				if (x1 < x2)
+					return -1;
+				else if (x1 > x2)
+					return 1;
+				else
+					return 0;
+			}
+			else if (axis == 1) {
+				float y1 = o1.center.y;
+				float y2 = o2.center.y;
+				if (y1 < y2)
+					return -1;
+				else if (y1 > y2)
+					return 1;
+				else
+					return 0;
+			}
+			else if (axis == 2) {
+				float z1 = o1.center.z;
+				float z2 = o2.center.z;
+				if (z1 < z2)
+					return -1;
+				else if (z1 > z2)
+					return 1;
+				else
+					return 0;
+			}
+			return 0;
+		}
+		
+	}
+	
 	/** A tetrahedral face. */
 	private class Face {
 		public Vert v0, v1, v2;
 		public Tet t0, t1;
-		
+		//public Vector3f center;
+		public Point3f upperRight, lowerLeft, center;		
 		/** Constructor.
 		 * 
 		 * @param v0 - the first vertex
@@ -279,9 +542,35 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			this.v0 = v0;
 			this.v1 = v1;
 			this.v2 = v2;
+			float maxX = Float.MIN_VALUE, maxY = Float.MIN_VALUE, maxZ = Float.MIN_VALUE;
+			float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, minZ = Float.MAX_VALUE;
+			maxX = Math.max(maxX, v0.pos.x);
+			maxY = Math.max(maxY, v0.pos.y);
+			maxZ = Math.max(maxZ, v0.pos.z);
+			minX = Math.min(minX, v0.pos.x);
+			minY = Math.min(minY, v0.pos.y);
+			minZ = Math.min(minZ, v0.pos.z);
+			
+			maxX = Math.max(maxX, v1.pos.x);
+			maxY = Math.max(maxY, v1.pos.y);
+			maxZ = Math.max(maxZ, v1.pos.z);
+			minX = Math.min(minX, v1.pos.x);
+			minY = Math.min(minY, v1.pos.y);
+			minZ = Math.min(minZ, v1.pos.z);
+			
+			maxX = Math.max(maxX, v2.pos.x);
+			maxY = Math.max(maxY, v2.pos.y);
+			maxZ = Math.max(maxZ, v2.pos.z);
+			minX = Math.min(minX, v2.pos.x);
+			minY = Math.min(minY, v2.pos.y);
+			minZ = Math.min(minZ, v2.pos.z);
+			
+			this.upperRight = new Point3f(maxX, maxY, maxZ);
+			this.lowerLeft = new Point3f(minX, minY, minZ);
+			this.center = new Point3f();
+			this.center.add(this.upperRight, this.lowerLeft);
+			this.center.scale(0.5f);
 		}
-		
-		
 		
 		/** Set one of the two tetrahedra of this Face to t. Does nothing if both tets are already filled.
 		 * 
