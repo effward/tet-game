@@ -564,7 +564,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		public String toString() {
 			StringBuilder result = new StringBuilder();
 			String NEW_LINE = System.getProperty("line.separator");
-			result.append(this.id);
+			result.append("Face");
 			return result.toString();
 		}
 		
