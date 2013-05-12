@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import javax.media.opengl.glu.GLU;
 import javax.vecmath.AxisAngle4f;
 import javax.vecmath.Color3f;
+import javax.vecmath.GMatrix;
+import javax.vecmath.GVector;
 import javax.vecmath.Point3f;
 import javax.vecmath.Quat4f;
 import javax.vecmath.Vector3f;
@@ -19,6 +21,7 @@ import cs5625.deferred.materials.Texture2D;
 import cs5625.deferred.misc.ScenegraphException;
 import cs5625.deferred.misc.Util;
 import cs5625.deferred.scenegraph.Geometry;
+import cs5625.deferred.scenegraph.KinematicObject;
 import cs5625.deferred.scenegraph.PointLight;
 import cs5625.deferred.scenegraph.TetMesh;
 
@@ -27,15 +30,15 @@ import procedural.Triangle;
 import procedural.Vertex;
 
 public class ProceduralPlanetSceneController extends SceneController {
+	
+	
 
-	/* Keeps track of camera's orbit position. Latitude and longitude are in degrees. */
-	private float mCameraLongitude = 50.0f, mCameraLatitude = -40.0f;
-	private float mCameraRadius = 15.0f;
-	private float mMinRadius = .5f, mMaxRadius = 1.5f, mScale = 5.0f;
+	/* Used to calculate mouse deltas in mouseDragged(). */ 
+	private Point mLastMousePos;
 	
-	
-	/* Used to calculate mouse deltas to orbit the camera in mouseDragged(). */ 
-	private Point mLastMouseDrag;
+	//Default planet values
+	private float mMinRadius = 0.5f, mMaxRadius = 1.5f, mScale = 20.0f;
+	private int mSubdivs = 5;
 	
 	public ProceduralPlanetSceneController(float min, float max) {
 		mMinRadius = min;
@@ -44,22 +47,42 @@ public class ProceduralPlanetSceneController extends SceneController {
 	
 	@Override
 	public void initializeScene() {
+
 		
-		Geometry planet = new Geometry();
-		
-		
-		TetMesh planetMesh = new TetMesh();
-		
+		//Generate planetary heightmesh...
 		Heightmesh planetHM = new Heightmesh();
 		planetHM.createIcosa();
 		
-		System.out.println("starting subdivs");
-		planetHM.subdivide(5);
+		System.out.println("creating variation basis");
+		planetHM.subdivide(Math.min(3, mSubdivs), true);
 		planetHM.randomize(mMinRadius, mMaxRadius);
+		planetHM.smooth(2);
+
 		
-		System.out.println("starting smoothing");
-		planetHM.smooth(3);
-		planetHM.scale(mScale);
+		System.out.println("subdividing");
+		planetHM.subdivide(Math.max(mSubdivs - 3, 0), false);
+		
+		System.out.println("saving frequencies");
+		planetHM.saveFrequency(0, 20);
+		
+		System.out.println("rerandomizing");
+		planetHM.randomize(mMinRadius, mMaxRadius);
+		planetHM.smooth(5);
+		planetHM.randomizeRelative(0.0f, 2.0f);
+		
+		System.out.println("smoothing according to saved smooth values");
+		planetHM.smooth(-1);
+		
+		System.out.println("Eroding");
+		planetHM.erode(10, 0.2f);
+
+		planetHM.scale(mScale, 0.0f);
+		
+		System.out.println("converting to tetmesh");
+		
+		//Convert heightmesh into a tetmesh.
+		Geometry planet = new Geometry();
+		TetMesh planetMesh = new TetMesh();
 		
 		ArrayList<Vertex> vertsHM = planetHM.getVerts();
 		int numVerts = vertsHM.size() + 1;
@@ -91,8 +114,6 @@ public class ProceduralPlanetSceneController extends SceneController {
 		try {
 			Texture2D rock = Texture2D.load(GLU.getCurrentGL().getGL2(), "textures/Rock.png");
 			mat.setDiffuseTexture(rock);
-			//Texture2D tile = Texture2D.load(GLU.getCurrentGL().getGL2(), "textures/tile.jpg");
-			//mat.setSpecularTexture(tile);
 		}
 		catch(Exception e) {
 			System.out.println(e);
@@ -130,63 +151,143 @@ public class ProceduralPlanetSceneController extends SceneController {
 		light.setLinearAttenuation(0.0f);
 		light.setQuadraticAttenuation(0.0f);
 		
-		light.setPosition(new Point3f(10.0f, 0.0f, 0.0f));
+		light.setPosition(new Point3f(100.0f, 0.0f, 0.0f));
 		light.setName("CameraLight");
 		
 		
+		PointLight light2 = new PointLight();
+		
+		light2.setConstantAttenuation(1.0f);
+		light2.setLinearAttenuation(0.0f);
+		light2.setQuadraticAttenuation(0.1f);
+		
+		light2.setPosition(new Point3f(0.0f, 0.0f, 0.0f));
+		light2.setName("CameraLight");
+		
 		try {
+			mSceneRoot.addChild(mCamera);
 			
-			
-			mSceneRoot.addChild(light);	
-			
+			mCamera.addChild(light2);
+			//mSceneRoot.addChild(light);	
+			//mSceneRoot.addChild(light2);
 			mSceneRoot.addChild(planet);
+			
 			
 		} catch (ScenegraphException e) {
 			e.printStackTrace();
 			System.exit(-1);
 		}
 		
-		/* Initialize camera position. */
-		updateCamera();
 	}
-	
-	protected void updateCamera()
-	{
-		/* Compose the "horizontal" and "vertical" rotations. */
-		Quat4f longitudeQuat = new Quat4f();
-		longitudeQuat.set(new AxisAngle4f(0.0f, 1.0f, 0.0f, mCameraLongitude * (float)Math.PI / 180.0f));
-		
-		Quat4f latitudeQuat = new Quat4f();
-		latitudeQuat.set(new AxisAngle4f(1.0f, 0.0f, 0.0f, mCameraLatitude * (float)Math.PI / 180.0f));
 
-		mCamera.getOrientation().mul(longitudeQuat, latitudeQuat);
-		
-		/* Set the camera's position so that it looks towards the origin. */
-		mCamera.setPosition(new Point3f(0.0f, 0.0f, mCameraRadius));
-		Util.rotateTuple(mCamera.getOrientation(), mCamera.getPosition());
-	}
 	
 	@Override
 	public void keyPressed(KeyEvent key) {
 		int c = key.getKeyCode();
-		if(c == KeyEvent.VK_W) {
+		
+		switch(mCamera.getMode()) {
+		case ORBIT: {
 			
 		}
-	}
-	
-	@Override
-	public void keyReleased(KeyEvent key) {
+		case FLY: {
+			if(c == KeyEvent.VK_UP) {
+				mCamera.setLocalAcceleration(new Vector3f(0.0f, 0.0f, -mCamera.accVal));
+			}
+			else if(c == KeyEvent.VK_DOWN) {
+				mCamera.setLocalAcceleration(new Vector3f(0.0f, 0.0f, mCamera.accVal));
+			}
+			else if (c == KeyEvent.VK_LEFT) {
+				mCamera.setLocalAcceleration(new Vector3f(-mCamera.accVal, 0.0f, 0.0f));
+			}
+			else if (c == KeyEvent.VK_RIGHT) {
+				mCamera.setLocalAcceleration(new Vector3f(mCamera.accVal, 0.0f, 0.0f));
+			}
+			else if (c == KeyEvent.VK_ADD) {
+				mCamera.setLocalAcceleration(new Vector3f(0.0f, mCamera.accVal, 0.0f));
+			}
+			else if (c == KeyEvent.VK_SUBTRACT) {
+				mCamera.setLocalAcceleration(new Vector3f(0.0f, -mCamera.accVal, 0.0f));
+			}
+			requiresRender();
+			
+			break;
+		}
+		case WALK: {
+			//...
+			break;
+		}
+		}
 		
 	}
 	
 	@Override
+	public void keyReleased(KeyEvent key) {
+		int c = key.getKeyCode();
+		
+		switch(mCamera.getMode()) {
+		case ORBIT: {
+			
+			break;
+		}
+		case FLY: {
+			if(c == KeyEvent.VK_UP) {
+				mCamera.setLocalAcceleration(new Vector3f(0.0f, 0.0f, 0.0f));
+			}
+			else if(c == KeyEvent.VK_DOWN) {
+				mCamera.setLocalAcceleration(new Vector3f(0.0f, 0.0f, 0.0f));
+			}
+			else if (c == KeyEvent.VK_LEFT) {
+				mCamera.setLocalAcceleration(new Vector3f(0.0f, 0.0f, 0.0f));
+			}
+			else if (c == KeyEvent.VK_RIGHT) {
+				mCamera.setLocalAcceleration(new Vector3f(0.0f, 0.0f, 0.0f));
+			}
+			else if (c == KeyEvent.VK_ADD) {
+				mCamera.setLocalAcceleration(new Vector3f(0.0f, 0.0f, 0.0f));
+			}
+			else if (c == KeyEvent.VK_SUBTRACT) {
+				mCamera.setLocalAcceleration(new Vector3f(0.0f, 0.0f, 0.0f));
+			}
+			requiresRender();
+			break;
+		}
+		case WALK: {
+			//...
+			break;
+		}
+		}
+	}
+	
+	@Override
 	public void keyTyped(KeyEvent key) {
-		char c = key.getKeyChar();
-		if (c == 'w')
-		{
-			System.out.println("w");
+		char c = Character.toLowerCase(key.getKeyChar());
+		
+		if (c == 'w') {
 			mRenderer.setRenderWireframes(!mRenderer.getRenderWireframes());
 			requiresRender();
+		}	
+		else if (c == 'o') {
+			//Swap camera modes...
+			switch(mCamera.getMode()) {
+			case ORBIT: {
+				mCamera.setMode(CamMode.FLY);
+				//set kinematic position to orbit location
+				
+				
+				break;
+			}
+			case FLY: {
+				mCamera.setMode(CamMode.ORBIT);
+				break;
+			}
+			case WALK: {
+				//...
+				break;
+			}
+			}
+		}
+		if (c == 'p') {
+			System.exit(0);
 		}
 	}
 	
@@ -194,53 +295,80 @@ public class ProceduralPlanetSceneController extends SceneController {
 	@Override
 	public void mouseWheelMoved(MouseWheelEvent mouseWheel) {
 		/* Zoom in and out by the scroll wheel. */
-		if (!isShadowCamMode) {
-			mCameraRadius += mouseWheel.getUnitsToScroll();
-			updateCamera();
+		switch(mCamera.getMode()) {
+		case ORBIT: {
+			mCamera.radius += mouseWheel.getUnitsToScroll();
 			requiresRender();
+			break;
+		}
+		case FLY: {
+			
+			break;
+		}
+		case WALK: {
+			
+			break;
+		}
 		}
 	}
 
 	@Override
-	public void mousePressed(MouseEvent mouse)
-	{
+	public void mousePressed(MouseEvent mouse)	{
 		/* Remember the starting point of a drag. */
-		mLastMouseDrag = mouse.getPoint();
+		mLastMousePos = mouse.getPoint();
 	}
+	
 	
 	@Override
-	public void mouseDragged(MouseEvent mouse)
-	{
+	public void mouseDragged(MouseEvent mouse) {
 		/* Calculate dragged delta. */
-		float deltaX = -(mouse.getPoint().x - mLastMouseDrag.x);
-		float deltaY = -(mouse.getPoint().y - mLastMouseDrag.y);
-		mLastMouseDrag = mouse.getPoint();
+		float deltaX = (mouse.getPoint().x - mLastMousePos.x);
+		float deltaY = (mouse.getPoint().y - mLastMousePos.y);
+		mLastMousePos = mouse.getPoint();
 		
-		/* Update longitude, wrapping as necessary. */
-		mCameraLongitude += deltaX;
+		switch(mCamera.getMode()) {
+		case ORBIT: {
+			/* Update longitude, wrapping as necessary. */
+			mCamera.longitude -= deltaX;
+			
+			if (mCamera.longitude > 360.0f) {
+				mCamera.longitude -= 360.0f;
+			}
+			else if (mCamera.longitude < 0.0f) {
+				mCamera.longitude += 360.0f;
+			}
+			
+			/* Update latitude, clamping as necessary. */
+			if (Math.abs(mCamera.latitude - deltaY) <= 89.0f) {
+				mCamera.latitude -= deltaY;
+			}
+			else {
+				mCamera.latitude = 89.0f * Math.signum(mCamera.latitude);
+			}
 		
-		if (mCameraLongitude > 360.0f)
-		{
-			mCameraLongitude -= 360.0f;
+			requiresRender();
+			
+			break;
 		}
-		else if (mCameraLongitude < 0.0f)
-		{
-			mCameraLongitude += 360.0f;
+		case FLY: {
+			float scale = 0.005f;
+			
+			//Update camera heading
+			mCamera.deltaTheta += deltaX * scale;
+			mCamera.deltaPhi -= deltaY * scale;
+			
+			requiresRender();
+			break;
 		}
-		
-		/* Update latitude, clamping as necessary. */
-		if (Math.abs(mCameraLatitude + deltaY) <= 89.0f)
-		{
-			mCameraLatitude += deltaY;
+		case WALK: {
+			requiresRender();
+			break;
 		}
-		else
-		{
-			mCameraLatitude = 89.0f * Math.signum(mCameraLatitude);
 		}
-	
-		updateCamera();
-		
-		requiresRender();
+
 	}
+	
+	/** An enumeration between possible camera modes. */
+	public enum CamMode{ORBIT, FLY, WALK};
 
 }

@@ -24,6 +24,9 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	private ArrayList<Tet> tets;
 	private ArrayList<Material> mats; 
 	
+	private ArrayList<Face> interfaces;
+	private ArrayList<Face> boundaries;
+	
 	/** A new empty TetMesh. */
 	public TetMesh() {
 		verts = new ArrayList<Vert>(10);
@@ -67,6 +70,22 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		
 	}
 	
+	/** Calculate the interfaces (between different materials) and
+	 * boundaries (between a tetrahedron at the edge of the mesh).
+	 */
+	private void calculateInterfacesAndBoundaries() {
+		interfaces = new ArrayList<Face>(10);
+		boundaries = new ArrayList<Face>(10);
+		for (Face f: faces) {
+			if (f.t1 == null){
+				boundaries.add(f);
+			}
+			else if (f.t0.mat != f.t1.mat) { //change to account for transparency..
+				interfaces.add(f);
+			}
+		}
+	}
+	
 	/** Set this TetMesh's polygons to be present at any interface between
 	 * tetrahedrons with different materials (where at least one is non-opaque), or
 	 * at boundaries where a Face has only one adjacent Tet.
@@ -74,18 +93,13 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	private void createSurface() {
 		//Go through and find all faces which are interfaces between different materials
 		//or are boundaries at the edge of the tetmesh.
-		ArrayList<Face> interFaces = new ArrayList<Face>(10);
-		for (Face f: faces) {
-			if (f.t1 == null || f.t0.mat != f.t1.mat) { //change to account for transparency..
-				interFaces.add(f);
-			}
-		}
+		calculateInterfacesAndBoundaries();
 		
 		System.out.println("Faces: " + faces.size()); //TODO remove
-		System.out.println("Shown faces: " + interFaces.size()); //TODO remove
+		System.out.println("Shown faces: " + boundaries.size()); //TODO remove
 		
 		//Copy these into an actual array now we know the number of faces required.
-		int[] arr = new int[interFaces.size() * 3];
+		int[] arr = new int[boundaries.size() * 3];
 		
 		//simultaneously compute normals.
 		Vector3f[] norms = new Vector3f[verts.size()];
@@ -100,14 +114,14 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		//And texture coords
 		for (int i = 0; i < verts.size(); i++) {
 			Vector3f pos = verts.get(i).pos;
-			texArr[2 * i] = (float)(Math.atan2(pos.y, pos.x) / (2*Math.PI) * 10);
-			texArr[2 * i + 1] = (float)(Math.atan2(pos.z, Math.sqrt(pos.x * pos.x + pos.y * pos.y)) / (2*Math.PI) * 10);
+			texArr[2 * i] = (float)(Math.atan2(pos.z, pos.x) / (2*Math.PI) * 10);
+			texArr[2 * i + 1] = (float)(Math.atan2(pos.y, Math.sqrt(pos.x * pos.x + pos.z * pos.z)) / (2*Math.PI) * 10);
 		}
 		
 		int v0, v1, v2;
 		Vector3f d0 = new Vector3f(), d1 = new Vector3f();
-		for (int j = 0; j < interFaces.size(); j++) {
-			Face f = interFaces.get(j);
+		for (int j = 0; j < boundaries.size(); j++) {
+			Face f = boundaries.get(j);
 			v0 = verts.indexOf(f.v0);
 			v1 = verts.indexOf(f.v1);
 			v2 = verts.indexOf(f.v2);

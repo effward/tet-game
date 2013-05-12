@@ -7,6 +7,8 @@ import javax.media.opengl.GLEventListener;
 import javax.media.opengl.awt.GLCanvas;
 import javax.swing.JFrame;
 
+import com.jogamp.opengl.util.FPSAnimator;
+
 import cs5625.deferred.apps.SceneController;
 
 /**
@@ -66,6 +68,10 @@ public class MainViewWindow extends JFrame implements GLEventListener
 
 		/* Focus the view so keystrokes to there first. */
 		mView.requestFocusInWindow();
+		
+		//Start everything running at whatever FPS the scene controller wants.
+		FPSAnimator fpsAnim = new FPSAnimator(mView, controller.getFPS());
+		fpsAnim.start();
 	}
 	
 	@Override

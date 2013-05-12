@@ -348,7 +348,7 @@ public class SceneObject implements OpenGLResourceObject
 		Point3f result = new Point3f(point);
 		
 		result.scale(mScale);
-		Util.rotateTuple(mOrientation, result);
+		Util.rotateTuple(mOrientation, result); //TODO change
 		result.add(mPosition);
 		
 		return result;

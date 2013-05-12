@@ -38,6 +38,9 @@ public abstract class SceneController implements MouseListener, MouseMotionListe
 	protected SceneObject mSceneRoot = new SceneObject();
 	protected Camera mCamera = new Camera();
 	protected Camera mShadowCamera = new Camera();
+	protected int FPS = 60;
+	
+	private long lastTime;
 	
 	protected boolean hasShadows = false;
 	
@@ -91,8 +94,13 @@ public abstract class SceneController implements MouseListener, MouseMotionListe
 	 */
 	public SceneController()
 	{
-		mMainWindow = new MainViewWindow("CS 5625 Deferred Renderer", this);
+		mMainWindow = new MainViewWindow("Tetra Game", this);
 		mMainWindow.setVisible(true);
+		lastTime = System.nanoTime();
+	}
+	
+	public int getFPS() {
+		return FPS;
 	}
 	
 	/**
@@ -115,10 +123,9 @@ public abstract class SceneController implements MouseListener, MouseMotionListe
 	 * @param dt The time (in seconds) since the last frame update. Used for time-based (as opposed to 
 	 *        frame-based) animation.
 	 */
-	public void nextFrame(float dt)
-	{
+	public void nextFrame(float dt)	{
 		mSceneRoot.animate(dt);
-		requiresRender();
+		//requiresRender();
 	}
 	
 	/**
@@ -128,6 +135,9 @@ public abstract class SceneController implements MouseListener, MouseMotionListe
 	 */
 	public void renderGL(GLAutoDrawable drawable)
 	{
+		float dt = (float)(System.nanoTime() - lastTime) / 1000000000f;
+		lastTime = System.nanoTime();
+		nextFrame(dt);
 		mRenderer.render(drawable, mSceneRoot, isShadowCamMode ? mShadowCamera : mCamera, !isShadowCamMode && hasShadows ? mShadowCamera : null);
 	}
 

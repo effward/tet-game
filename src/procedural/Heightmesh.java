@@ -11,6 +11,8 @@ import cs5625.deferred.scenegraph.Geometry;
 public class Heightmesh extends Geometry {
 	private ArrayList<Vertex> verts;
 	private ArrayList<Triangle> triangles;
+	private int[] frequencyMask;
+	private int maxSmooth = 0;
 	
 	/** Create a new Heightmesh. */
 	public Heightmesh() {
@@ -185,8 +187,9 @@ public class Heightmesh extends Geometry {
 	/**
 	 * Subdivide the triangles of this Heightmesh.
 	 * @param times - the number of times to do this.
+	 * @param norm - whether to normalize at each step.
 	 */
-	public void subdivide(int times) {
+	public void subdivide(int times, boolean norm) {
 		Vertex middle01, middle12, middle20;
 		int index01, index12, index20;
 		ArrayList<Triangle> oldTriangles;
@@ -204,9 +207,19 @@ public class Heightmesh extends Geometry {
 			//Subdivide each old triangle
 			for (Triangle t: oldTriangles) {
 				//Find middle of each pair of points, normalized to unit radius
-				middle01 = new Vertex(verts.get(t.v0).pt.plus(verts.get(t.v1).pt).times(0.5f).normalize());
-				middle12 = new Vertex(verts.get(t.v1).pt.plus(verts.get(t.v2).pt).times(0.5f).normalize());
-				middle20 = new Vertex(verts.get(t.v2).pt.plus(verts.get(t.v0).pt).times(0.5f).normalize());
+				
+				middle01 = new Vertex(verts.get(t.v0).pt.plus(verts.get(t.v1).pt).times(0.5f));
+				middle12 = new Vertex(verts.get(t.v1).pt.plus(verts.get(t.v2).pt).times(0.5f));
+				middle20 = new Vertex(verts.get(t.v2).pt.plus(verts.get(t.v0).pt).times(0.5f));
+				
+				if (norm) {
+					middle01.mag = 1.0f;
+					middle01.pt.normalizeEquals();
+					middle12.mag = 1.0f;
+					middle12.pt.normalizeEquals();
+					middle20.mag = 1.0f;
+					middle20.pt.normalizeEquals();
+				}
 				
 				//Check for midpoints already in points list
 				index01 = verts.indexOf(middle01);
@@ -240,14 +253,14 @@ public class Heightmesh extends Geometry {
 	 * Scale this Heightmesh by the given factor.
 	 * @param factor - a scaling factor.
 	 */
-	public void scale(float factor) {
+	public void scale(float factor, float intercept) {
 		for (Vertex v: verts) {
-			v.mag *= factor;
+			v.mag = (v.mag - intercept) * factor + intercept;
 			v.pt.set(v.dir);
 			v.pt.timesEquals(v.mag);
 			Vertex lower = v.lower;
 			while(lower != null) {
-				lower.mag *= factor;
+				lower.mag = (lower.mag - intercept) * factor + intercept;
 				lower.pt.set(lower.dir);
 				lower.pt.timesEquals(lower.mag);
 				lower = lower.lower;
@@ -261,55 +274,187 @@ public class Heightmesh extends Geometry {
 	 * @param max - maximum radius
 	 */
 	public void randomize(float min, float max) {
-		float diff = max - min;
 		for (Vertex v: verts) {
-			v.mag = (float)(Math.random() * diff) + min;
-			v.pt.set(v.dir);
-			v.pt.timesEquals(v.mag);
-			Vertex lower = v.lower;
-			while(lower != null) {
-				lower.mag = v.mag;
-				lower.pt.set(lower.dir);
-				lower.pt.timesEquals(lower.mag);
-				lower = lower.lower;
-			}
+			randomizePoint(v, min, max);
 		}
 	}
 	
 	/**
+	 * Randomize this HeightMesh's terrain using the old height as setting the randomization range.
+	 * @param min - the minimum possible height
+	 * @param max - the maximum possible height
+	 */
+	public void randomizeRelative(float min, float max) {
+		float oldmin = Float.POSITIVE_INFINITY;
+		float oldmax = Float.NEGATIVE_INFINITY;
+		float half = (max + min) / 2.0f;
+	
+		for (Vertex v : verts) {
+			if (v.mag < oldmin) oldmin = v.mag;
+			if (v.mag > oldmax) oldmax = v.mag;
+		}
+		
+		for (Vertex v: verts) {
+			float range = (v.mag - oldmin) / (oldmax - oldmin) * (max - min);
+			float lower = half - range / 2;
+			float upper = half + range / 2;
+			randomizePoint(v, lower, upper);
+		}
+	}
+	
+	/**
+	 * Randomize the given vertex.
+	 * @param v - the vertex to randomize
+	 * @param min - the minimum value
+	 * @param max - the maximum value
+	 */
+	private void randomizePoint(Vertex v, float min, float max) {
+		float diff = max - min;
+		v.mag = (float)(Math.random() * diff) + min;
+		v.pt.set(v.dir);
+		v.pt.timesEquals(v.mag);
+		
+		Vertex lower = v.lower;
+		while(lower != null) {
+			lower.mag = v.mag;
+			lower.pt.set(lower.dir);
+			lower.pt.timesEquals(lower.mag);
+			lower = lower.lower;
+		}
+	}
+	
+	/** Save some iteration count info... */
+	public void saveFrequency(int min, int max) {
+		float oldmin = Float.POSITIVE_INFINITY;
+		float oldmax = Float.NEGATIVE_INFINITY;
+		maxSmooth = 0;
+		
+		for (Vertex v : verts) {
+			if (v.mag < oldmin) oldmin = v.mag;
+			if (v.mag > oldmax) oldmax = v.mag;
+		}
+		//float diff = (float)(max - min) / (oldmax - oldmin);
+		frequencyMask = new int[verts.size()];
+		
+		for (int i = 0; i < verts.size(); i++) {
+			//frequencyMask[i] = (int)((verts.get(i).mag - oldmin) * diff) + min;
+			frequencyMask[i] = (int)(logistic(verts.get(i).mag, oldmin, oldmax, 5.0f) * (float)(max - min)) + min;
+			if (frequencyMask[i] > maxSmooth) maxSmooth = frequencyMask[i];
+		}
+	}
+	
+	private float logistic(float in, float min, float max, float form) {
+		float lform = (float)(1.0f / (1.0f + Math.pow(Math.E, -form)));
+		
+		float l = (float)(1.0f / (1.0f + Math.pow(Math.E, -((in - min) * form / (max - min) - form / 2.0f))));
+		return (l - 0.5f) * (0.5f / (0.5f - lform)) + 0.5f;
+	}
+	
+	public void erode(int its, float ratio) {
+		float maxslope = 0.0f, slope;
+		Vertex maxVert, v;
+		for (int it = 0; it < its; it++) {
+			
+			for (Vertex start: verts) {
+				v = start;
+				
+				do {
+					maxslope = 0;
+					maxVert = null;
+					for (Vertex n: v.neighbors) {
+						slope = v.mag - n.mag;
+						if (slope > maxslope) {
+							maxslope = slope;
+							maxVert = n;
+						}
+					}
+					if (maxslope > 0) {
+						v.mag -= maxslope * ratio / 2;
+						v.pt.normalizeEquals();
+						v.pt.timesEquals(v.mag);
+						maxVert.mag += maxslope * ratio / 2;
+						maxVert.pt.normalizeEquals();
+						maxVert.pt.timesEquals(maxVert.mag);
+						v = maxVert;
+					}
+					
+
+				} while (maxslope > 0);
+			}
+		}
+		
+	}
+	
+	/**
 	 * Smooth this Globe's terrain.
-	 * @param its - number of iterations to smooth.
+	 * @param its - number of iterations to smooth (if -1, uses saved frequency).
 	 */
 	public void smooth(int its) {
 		float[] shadow = new float[verts.size()];
 		
 		float tot;
-		int i = 0;
 		
-		for (int it = 0; it < its; it++) {
-			for (Vertex v: verts) {
-				tot = v.mag;
-				for (Vertex n: v.neighbors) {
-					tot += n.mag;
+		
+		if (its == -1 && verts.size() == frequencyMask.length) {
+			for (int it = 0; it < maxSmooth; it++) {
+				for (int j = 0; j < verts.size(); j++) {
+					if (frequencyMask[j] >= it) {
+						Vertex v = verts.get(j);
+						
+						tot = v.mag;
+						for (Vertex n: v.neighbors) {
+							tot += n.mag;
+						}
+						shadow[j] = tot / (v.neighbors.size() + 1);
+					}
 				}
-				shadow[i] = tot / (v.neighbors.size() + 1);
-				i++;
-			}
-			i = 0;
-			for (Vertex v: verts) {
-				v.mag = shadow[i];
-				v.pt.set(v.dir);
-				v.pt.timesEquals(v.mag);
-				Vertex lower = v.lower;
-				while(lower != null) {
-					lower.mag = shadow[i];
-					lower.pt.set(lower.dir);
-					lower.pt.timesEquals(lower.mag);
-					lower = lower.lower;
+				for (int j = 0; j < verts.size(); j++) {
+					if (frequencyMask[j] >= it) {
+						Vertex v = verts.get(j);
+					
+						v.mag = shadow[j];
+						v.pt.set(v.dir);
+						v.pt.timesEquals(v.mag);
+						Vertex lower = v.lower;
+						while(lower != null) {
+							lower.mag = shadow[j];
+							lower.pt.set(lower.dir);
+							lower.pt.timesEquals(lower.mag);
+							lower = lower.lower;
+						}
+					}
 				}
-				i++;
 			}
-			i = 0;
+			
+		}
+		else {
+			if (its < 0) its = 1;
+			int i = 0;
+			for (int it = 0; it < its; it++) {
+				for (Vertex v: verts) {
+					tot = v.mag;
+					for (Vertex n: v.neighbors) {
+						tot += n.mag;
+					}
+					shadow[i] = tot / (v.neighbors.size() + 1);
+					i++;
+				}
+				i = 0;
+				for (Vertex v: verts) {
+					v.mag = shadow[i];
+					v.pt.set(v.dir);
+					v.pt.timesEquals(v.mag);
+					Vertex lower = v.lower;
+					while(lower != null) {
+						lower.mag = shadow[i];
+						lower.pt.set(lower.dir);
+						lower.pt.timesEquals(lower.mag);
+						lower = lower.lower;
+					}
+					i++;
+				}
+				i = 0;
+			}
 		}
 	}
 }
