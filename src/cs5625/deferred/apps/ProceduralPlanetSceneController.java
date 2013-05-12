@@ -58,12 +58,12 @@ public class ProceduralPlanetSceneController extends SceneController {
 		Heightmesh planetHM = new Heightmesh();
 		planetHM.createIcosa();
 		
-		//System.out.println("starting subdivs");
-		//planetHM.subdivide(5);
-		//planetHM.randomize(mMinRadius, mMaxRadius);
+		System.out.println("starting subdivs");
+		planetHM.subdivide(5);
+		planetHM.randomize(mMinRadius, mMaxRadius);
 		
-		//System.out.println("starting smoothing");
-		//planetHM.smooth(3);
+		System.out.println("starting smoothing");
+		planetHM.smooth(3);
 		planetHM.scale(mScale);
 		
 		ArrayList<Vertex> vertsHM = planetHM.getVerts();

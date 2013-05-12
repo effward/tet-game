@@ -26,7 +26,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	private ArrayList<Face> interfaces;
 	private ArrayList<Tet> tets;
 	private TreeNode root;
-	private int kdCutoff = 10;
+	private int kdCutoff = 100;
 	private int ids;
 	private Point3f mUpperRight, mLowerLeft;
 	private float epsilon = 0.00000000001f;
@@ -84,12 +84,13 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	
 	private TreeNode kdTreeHelper(ArrayList<Face> f, int depth, Point3f upRight, Point3f lowLeft) {
 		if (f.size() <= 0 || depth >= kdCutoff) {
+			//System.out.println("Faces empty or cutoff reached");
 			return null;
 		}
 		else if (f.size() == 1) {
 			TreeNode node = new TreeNode();
-			node.upperRight = f.get(0).upperRight;
-			node.lowerLeft = f.get(0).lowerLeft;
+			node.upperRight = upRight;
+			node.lowerLeft = lowLeft;
 			node.faces = f;
 			//System.out.println("Leaf Created with one face: " + node.faces);
 			return node;
@@ -99,56 +100,79 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		//System.out.println("LowerLeft: " + lowLeft);
 		//System.out.println("Number of Faces: " + f.size());
 		//System.out.println("Faces: " + f);
-		//System.out.println("^^^^^^^^^^^^^^");
+		
 		
 		int axis;
 		float midpoint;
 		
 		axis = depth % 3;
-		Collections.sort(f, new FaceComparator(axis));
-		
-		int median = f.size() / 2;
-		
-		if (f.size() % 2 == 0) {
-			Point3f left = f.get(median-1).center;
-			Point3f right = f.get(median).center;
-			//System.out.println("Median calc");
-			//System.out.println("Left: " + f.get(median-1).lowerLeft + ", " + left + ", " + f.get(median-1).upperRight);
-			//System.out.println("Right: " + f.get(median).lowerLeft + ", " + right + ", " + f.get(median).upperRight);
-
-			if (axis == 0)
-				midpoint = (left.x + right.x) / 2f;
-			else if (axis == 1)
-				midpoint = (left.y + right.y) / 2f;
-			else
-				midpoint = (left.z + right.z) / 2f;
-		}
-		else {
-			if (axis == 0)
-				midpoint = f.get(median).center.x;
-			else if (axis == 1)
-				midpoint = f.get(median).center.y;
-			else
-				midpoint = f.get(median).center.z; 
-		}
-		
+		boolean splitPointless;
+		int tries = 1;
 		TreeNode node = new TreeNode();
 		node.upperRight = upRight;
 		node.lowerLeft = lowLeft;
 		ArrayList<Face> leftList = new ArrayList<Face>();
 		ArrayList<Face> rightList = new ArrayList<Face>();
 		Point3f leftUpRight, rightLowLeft;
-		if (axis == 0) {
-			leftUpRight = new Point3f(midpoint, upRight.y, upRight.z);
-			rightLowLeft = new Point3f(midpoint, lowLeft.y, lowLeft.z);
-		}
-		else if (axis == 1){
-			leftUpRight = new Point3f(upRight.x, midpoint, upRight.z);
-			rightLowLeft = new Point3f(lowLeft.x, midpoint, lowLeft.z);
-		}
-		else {
-			leftUpRight = new Point3f(upRight.x, upRight.y, midpoint);
-			rightLowLeft = new Point3f(lowLeft.x, lowLeft.y, midpoint);
+		do {
+			splitPointless = false;
+			Collections.sort(f, new FaceComparator(axis));
+			
+			int median = f.size() / 2;
+			
+			if (f.size() % 2 == 0) {
+				Point3f left = f.get(median-1).center;
+				Point3f right = f.get(median).center;
+	
+				if (axis == 0)
+					midpoint = (left.x + right.x) / 2f;
+				else if (axis == 1)
+					midpoint = (left.y + right.y) / 2f;
+				else
+					midpoint = (left.z + right.z) / 2f;
+			}
+			else {
+				if (axis == 0)
+					midpoint = f.get(median).center.x;
+				else if (axis == 1)
+					midpoint = f.get(median).center.y;
+				else
+					midpoint = f.get(median).center.z; 
+			}
+			//System.out.println("axis: " + axis);
+			//System.out.println("midpt: " + midpoint);
+			//System.out.println("^^^^^^^^^^^^^^");
+			
+
+			if (axis == 0) {
+				leftUpRight = new Point3f(midpoint, upRight.y, upRight.z);
+				rightLowLeft = new Point3f(midpoint, lowLeft.y, lowLeft.z);
+				if(upRight.x == midpoint || lowLeft.x == midpoint)
+					splitPointless = true;
+			}
+			else if (axis == 1){
+				leftUpRight = new Point3f(upRight.x, midpoint, upRight.z);
+				rightLowLeft = new Point3f(lowLeft.x, midpoint, lowLeft.z);
+				if(upRight.y == midpoint || lowLeft.y == midpoint)
+					splitPointless = true;
+			}
+			else {
+				leftUpRight = new Point3f(upRight.x, upRight.y, midpoint);
+				rightLowLeft = new Point3f(lowLeft.x, lowLeft.y, midpoint);
+				if(upRight.z == midpoint || lowLeft.z == midpoint)
+					splitPointless = true;
+			}
+			if (splitPointless) {
+				axis = (axis + 1) % 3;
+				tries++;
+			}
+		} while (splitPointless && tries < 4);
+		
+		if (tries == 4) {
+			node.upperRight = upRight;
+			node.lowerLeft = lowLeft;
+			node.faces = f;
+			return node;
 		}
 		
 		float volume = (upRight.x - lowLeft.x) * (upRight.y - lowLeft.y)* (upRight.z - lowLeft.z); 
@@ -157,42 +181,47 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		for(int i = 0; i < f.size(); i++) {
 			Point3f left = f.get(i).lowerLeft;
 			Point3f right = f.get(i).upperRight;
-			Point3f center = f.get(i).center;
 			float faceVolume = (right.x - left.x) * (right.y - left.y) * (right.z - left.z); 
 			if (faceVolume < volume)
 				smallerFound = true;
 			if (axis == 0) {
-				if (center.x <= midpoint)
+				if (left.x <= midpoint)
 					leftList.add(f.get(i));
-				else
+				if (right.x > midpoint)
 					rightList.add(f.get(i));
 			}
 			else if (axis == 1) {
-				if (center.y <= midpoint)
+				if (left.y <= midpoint)
 					leftList.add(f.get(i));
-				else
+				if (right.y > midpoint)
 					rightList.add(f.get(i));
 			}
 			else {
-				if (center.z <= midpoint)
+				if (left.z <= midpoint)
 					leftList.add(f.get(i));
-				else
+				if (right.z > midpoint)
 					rightList.add(f.get(i));
 			}
 		}
-		if (smallerFound) {
-			//System.out.println("Creating Children with faces:");
-			//System.out.println("Left: " + leftList);
-			//System.out.println("Right: " + rightList);
-			node.left = kdTreeHelper(leftList, depth+1, leftUpRight, lowLeft);
+		boolean listsIdentical = false;
+		if (leftList.size() == rightList.size()) {
+			listsIdentical = true;
+			for (int i = 0; i < leftList.size(); i++) {
+				if (!leftList.contains(rightList.get(i))) {
+					listsIdentical = false;
+					break;
+				}
+			}
+		}
+		if (smallerFound && !listsIdentical) {
+			node.left = kdTreeHelper(leftList, depth+1, leftUpRight, lowLeft);	
 			node.right = kdTreeHelper(rightList, depth+1, upRight, rightLowLeft);
 		}
 		
 		if (node.left == null && node.right == null) { //this is a leaf node
 			node.faces = f;
-			//System.out.println("Leaf created containing faces: " + f);
 		}
-		//System.out.println("********************************");
+		//System.out.println("**********************");
 		return node;
 	}
 	
