@@ -27,7 +27,6 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	private ArrayList<Tet> tets;
 	private TreeNode root;
 	private int kdCutoff = 100;
-	private int ids;
 	private Point3f mUpperRight, mLowerLeft;
 	private float epsilon = 0.00000000001f;
 	
@@ -40,8 +39,6 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		mUpperRight = new Point3f();
 		mLowerLeft = new Point3f();
 		
-		ids = 0;
-
 		BlinnPhongMaterial mat = new BlinnPhongMaterial();
 		try {
 			Texture2D rock = Texture2D.load(GLU.getCurrentGL().getGL2(), "textures/Rock.png");
@@ -399,7 +396,6 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			f.v0.addFace(f);
 			f.v1.addFace(f);
 			f.v2.addFace(f);
-			f.id = ids++;
 			return f;
 		}
 		else {
@@ -523,9 +519,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		public Vert v0, v1, v2;
 		public Tet t0, t1;
 		//public Vector3f center;
-		public Point3f upperRight, lowerLeft, center;
-		public int id;
-		
+		public Point3f upperRight, lowerLeft, center;		
 		/** Constructor.
 		 * 
 		 * @param v0 - the first vertex
