@@ -10,6 +10,7 @@ import java.util.List;
 
 import javax.media.opengl.glu.GLU;
 import javax.vecmath.Color3f;
+import javax.vecmath.GVector;
 import javax.vecmath.Point3f;
 import javax.vecmath.Vector3f;
 
@@ -222,6 +223,132 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		return node;
 	}
 	
+	private GVector computePluckerCoord(Vector3f start, Vector3f end) {
+		GVector ret = new GVector(6);
+		ret.setElement(0, start.x * end.y - end.x * start.y);
+		ret.setElement(1, start.x * end.z - end.x * start.z);
+		ret.setElement(2, start.x - end.x);
+		ret.setElement(3, start.y * end.z - end.y * start.z);
+		ret.setElement(4, start.z - end.z);
+		ret.setElement(5, end.y - start.y);
+		return ret;
+	}
+	
+	private float computeSideOperator(GVector a, GVector b) {
+		if (a.getSize() != 6 || b.getSize() != 6)
+			System.out.println("Vectors of incorrect size supplied");
+		return (float) (a.getElement(0) * b.getElement(4) + 
+				a.getElement(1) * b.getElement(5) + 
+				a.getElement(2) * b.getElement(3) + 
+				a.getElement(3) * b.getElement(2) + 
+				a.getElement(4) * b.getElement(0) + 
+				a.getElement(5) * b.getElement(1));
+	}
+	
+	private ArrayList<Vector3f> intersectFace(Vector3f v0, Vector3f v1, Vector3f v2, GVector line, Vector3f start, Vector3f end, boolean recurrsing) {
+		ArrayList<Vector3f> hitPos = new ArrayList<Vector3f>();
+		GVector e1, e2, e3;
+		Vector3f norm;
+		float s1, s2, s3;
+		e1 = computePluckerCoord(v0, v1);
+		e2 = computePluckerCoord(v1, v2);
+		e3 = computePluckerCoord(v2, v0);
+		s1 = computeSideOperator(line, e1);
+		s2 = computeSideOperator(line, e2);
+		s3 = computeSideOperator(line, e3);
+		
+		if (s1 == 0 && s2 == 0 && s3 == 0) {
+			//The line and face are coplanar
+			Vector3f edge1 = new Vector3f();
+			Vector3f edge2 = new Vector3f();
+			edge1.sub(v1, v0);
+			edge2.sub(v2, v0);
+			norm = new Vector3f();
+			norm.cross(edge1, edge2);
+			norm.normalize();
+			// create a point that is not co-planar
+			Vector3f p = new Vector3f();
+			p.add(v0, norm);
+			if (!recurrsing) {
+				ArrayList<Vector3f> interPos1 = intersectFace(v0, v1, p, line, start, end, true);
+				ArrayList<Vector3f> interPos2 = intersectFace(v1, v2, p, line, start, end, true);
+				ArrayList<Vector3f> interPos3 = intersectFace(v2, v0, p, line, start, end, true);
+				if (interPos1 == null && interPos2 == null && interPos3 == null)
+					return null;
+				if (interPos1 != null)
+					hitPos.addAll(interPos1);
+				if (interPos2 != null)
+					hitPos.addAll(interPos2);
+				if (interPos3 != null)
+					hitPos.addAll(interPos3);
+				for (int i = 0; i < hitPos.size(); i++) {
+					for (int j = i+1; j < hitPos.size(); j++) {
+						if (hitPos.get(i).equals(hitPos.get(j))) {
+							ArrayList<Vector3f> temp = new ArrayList<Vector3f>();
+							temp.add(hitPos.get(i));
+							return temp;
+						}	
+					}
+				}
+				return hitPos;
+			}
+			else {
+				return hitPos;
+			}
+			
+		}
+		else {
+			// if s1, s2, and s3 do not all have the same sign
+			if (!((s1 <= 0 && s2 <= 0 && s3 <= 0) || (s1 >= 0 && s2 >= 0 && s3 >= 0) || (s1 == 0 && s2 == 0 && s3 == 0))) {
+				//no intersection
+				return null;
+			}
+			// if s1, s2, and s3 are all less than (or greater than) zero
+			//if ((s1 < 0 && s2 < 0 && s3 < 0) || (s1 > 0 && s2 > 0 && s3 > 0)) {
+				//line passes through middle of triangle
+			Vector3f edge1 = new Vector3f();
+			Vector3f edge2 = new Vector3f();
+			edge1.sub(v1, v0);
+			edge2.sub(v2, v0);
+			norm = new Vector3f();
+			norm.cross(edge1, edge2);
+			norm.normalize();
+			Vector3f temp = new Vector3f();
+			temp.sub(v0, start);
+			float numerator = temp.dot(norm);
+			Vector3f temp2 = new Vector3f();
+			temp2.sub(end, start);
+			temp2.normalize();
+			float denominator = temp2.dot(norm);
+			if (denominator != 0) {
+				Vector3f interPos = new Vector3f();
+				temp2.scale(numerator/denominator);
+				interPos.add(temp2, start);
+				hitPos.add(interPos);
+				return hitPos;
+			}
+			else {
+				System.out.println("The two intersection algorithms disagree");
+				return null;
+			}
+		}
+	}
+	
+	public ArrayList<Face> intersectLine(Vector3f start, Vector3f end) {
+		GVector l = computePluckerCoord(start, end);
+		ArrayList<Face> hit = new ArrayList<Face>();
+		ArrayList<Vector3f> hitPos = new ArrayList<Vector3f>();
+		for (Face f : faces) {
+			ArrayList<Vector3f> interPos = intersectFace(f.v0.pos, f.v1.pos, f.v2.pos, l, start, end, false);
+			if (interPos != null && interPos.size() != 0) {
+				hit.add(f);
+				for (Vector3f pos : interPos)
+					hitPos.add(pos);
+			}
+		}
+		return hit; //return hitPos also!!
+	}
+	
 	
 	/** Set the vertices of this TetMesh to the given list of verts. */
 	public void setVerts(ArrayList<Vector3f> verts) {
@@ -263,6 +390,11 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		createSurface();
 		root = buildKDTree();
 		//printKDTree();
+		ArrayList<Face> intersects = intersectLine(new Vector3f(0,0,0), new Vector3f(0,1,0));
+		for (Face f: intersects) {
+			System.out.println("Hit Face: (" + f.v0.pos + ", " + f.v1.pos + ", " + f.v2.pos + ")");
+		}
+		System.out.println("Size: " + intersects.size());
 		
 	}
 	
