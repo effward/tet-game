@@ -235,6 +235,246 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		return node;
 	}
 	
+	
+	/**********************************************************
+	 * Start Intersection Calculation Stuff
+	 ********************************************************/
+	
+	private enum IntersectionType {
+		NONE, PROPER, PROPER_END, VERTEX, VERTEX_END, EDGE, EDGE_END, 
+		COPLANAR_VERTEX, COPLANAR_TWO_EDGES, COPLANAR_EDGE, COPLANAR_VERTEX_EDGE, COPLANAR_CONTAINED,
+		LINE, LINE_LINE_SEGMENT, LINE_CONTAINS_SEGMENT, LINE_END, COLINEAR_SEGMENTS
+	}
+	
+	private class FacePointIntersectionPair {
+		public ArrayList<Vector3f> points;
+		public Face face;
+		public IntersectionType type;
+		
+		public FacePointIntersectionPair (PointIntersection intersection, Face f) {
+			this.type = intersection.type;
+			this.face = f;
+			this.points = intersection.points;	
+		}
+	}
+	
+	private class PointIntersection {
+		public ArrayList<Vector3f> points;
+		public IntersectionType type;
+	}
+	
+	private float perpProduct(Vector3f u, Vector3f v) {
+		return u.x * v.y - u.y * v.x;
+	}
+	
+	
+	//returns a float scalar of how far into segment 2 the intersection point is, or -1 if no intersection
+	private ArrayList<Float> intersect2DSegments(Vector3f start1, Vector3f end1, Vector3f start2, Vector3f end2) {
+		ArrayList<Float> ret = new ArrayList<Float>();
+		Vector3f u = new Vector3f(end1.x-start1.x, end1.y-start1.y, 0);
+		Vector3f v = new Vector3f(end2.x-start2.x, end2.y-start2.y, 0);
+		Vector3f w = new Vector3f(start1.x-start2.x, start1.y-start2.y, 0);
+		float d = perpProduct(u, v);
+		if (d == 0) {
+			float t0, t1;
+			Vector3f w2 = new Vector3f(end1.x-start2.x, end1.y-start2.y, 0);
+			if (v.x != 0) {
+				t0 = w.x / v.x;
+				t1 = w2.x / v.x;
+			}
+			else {
+				t0 = w.y / v.y;
+				t1 = w2.y / v.y;
+			}
+			if (t0 > t1) {
+				float t = t0;
+				t0 = t1;
+				t1 = t;
+			}
+			if (t0 > 1 || t1 < 0) {
+				ret.add(-1f);
+				return ret;
+			}
+			t0 = t0 < 0 ? 0 : t0;
+			t1 = t1 > 1 ? 1 : t1;
+			if (t0 == t1) {
+				ret.add((Float)t0);
+				return ret;
+			}
+			ret.add((Float)t0);
+			ret.add((Float)t1);
+			return ret;
+		}
+		float s = perpProduct(v,w) / d;
+		if (s < 0 || s > 1) {
+			ret.add(-1f);
+			return ret;
+		}
+		
+		float t = perpProduct(u,w) / d;
+		if (t < 0 || t > 1) {
+			ret.add(-1f);
+			return ret;
+		}
+		ret.add(t);
+		ret.add(s);
+		return ret;
+	}
+	
+	//Doesn't actually find the intersection between a line and a line segment, but rather two line segments
+	private PointIntersection intersectLineLineSegment(Vector3f start1, Vector3f end1, Vector3f start2, Vector3f end2) {
+		PointIntersection intersection = new PointIntersection();
+		GVector line = computePluckerCoord(start1, end1);
+		GVector segment = computePluckerCoord(start2, end2);
+		float s0 = computeSideOperator(line, segment);
+		if (s0 != 0) {
+			intersection.type = IntersectionType.NONE;
+			return intersection;
+		}
+		Vector3f temp1 = new Vector3f();
+		Vector3f temp2 = new Vector3f();
+		temp1.sub(end1, start1);
+		temp2.sub(end2, start2);
+		temp2.cross(temp1, temp2);
+		temp2.normalize();
+		temp1.add(temp2, start1);
+		GVector l1 = computePluckerCoord(temp1, start2);
+		GVector l2 = computePluckerCoord(end2, temp1);
+		float s1 = computeSideOperator(line, l1);
+		float s2 = computeSideOperator(line, l2);
+		if ((s1 < 0 && s2 > 0) || (s1 > 0 && s2 < 0)) {
+			intersection.type = IntersectionType.NONE;
+			return intersection;
+		}
+		else if ((s1 < 0 && s2 < 0) || (s1 > 0 && s2 > 0)) {
+			intersection.type = IntersectionType.LINE_LINE_SEGMENT;
+		}
+		else if (s1 == 0 && s2 == 0) {
+			intersection.type = IntersectionType.LINE_CONTAINS_SEGMENT;
+		}
+		else {
+			intersection.type = IntersectionType.LINE_END;
+		}
+		ArrayList<Float> results = intersect2DSegments(start1, end1, start2, end2);
+		if (results.get(0).equals(-1f)) {
+			System.out.println("The two intersection algs disagree");
+			intersection.type = IntersectionType.NONE;
+			return intersection;
+		}
+		System.out.println(results); ///////////////////
+		Vector3f interPos = new Vector3f();
+		Vector3f dir = new Vector3f();
+		dir.sub(end2, start2);
+		dir.scale(results.get(0));
+		interPos.add(start2, dir);
+		if (intersection.type == IntersectionType.LINE_CONTAINS_SEGMENT) {
+			Vector3f dir2 = new Vector3f();
+			dir2.sub(interPos, start1);
+			dir.sub(end1, start1);
+			Vector3f cross = new Vector3f();
+			cross.cross(dir, dir2);
+			if (cross.equals(new Vector3f(0,0,0))) {
+				ArrayList<Vector3f> temp = new ArrayList<Vector3f>();
+				temp.add(interPos);
+				if (results.size() > 1) {
+					Vector3f interPos2 = new Vector3f();
+					dir.sub(end2, start2);
+					dir.scale(results.get(1));
+					interPos2.add(start2, dir);
+					temp.add(interPos2);
+				}
+				intersection.points = temp;
+				return intersection;
+			}
+			else {
+				System.out.println("The intersection algs for line segs disagree");
+				intersection.type = IntersectionType.NONE;
+				return intersection;
+			}
+		}
+		else {
+			if (results.size() == 1) {
+				//colinear end point intersection in projected case
+				Vector3f dir2 = new Vector3f();
+				dir2.sub(interPos, start1);
+				dir.sub(end1, start1);
+				Vector3f cross = new Vector3f();
+				cross.cross(dir, dir2);
+				if (cross.equals(new Vector3f(0,0,0))) {
+					ArrayList<Vector3f> temp = new ArrayList<Vector3f>();
+					temp.add(interPos);
+					intersection.points = temp;
+					return intersection;
+				}
+				else {
+					intersection.type = IntersectionType.NONE;
+					return intersection;
+				}
+			}
+			Vector3f interPos2 = new Vector3f();
+			Vector3f dir2 = new Vector3f();
+			dir2.sub(end1, start1);
+			dir2.scale(results.get(1));
+			interPos2.add(start1, dir2);
+			if(interPos.equals(interPos2)) {
+				ArrayList<Vector3f> temp = new ArrayList<Vector3f>();
+				temp.add(interPos);
+				intersection.points = temp;
+				return intersection;
+			}
+			else {
+				System.out.println("The 2 intersection algs disagree for line segs");
+				intersection.type = IntersectionType.NONE;
+				return intersection;
+			}
+		}
+	}
+	
+	private PointIntersection intersectLineSegmentLineSegment(Vector3f start1, Vector3f end1, Vector3f start2, Vector3f end2) {
+		PointIntersection intersection1 = intersectLineLineSegment(start1, end1, start2, end2);
+		if (intersection1.type == IntersectionType.NONE)
+			return intersection1;
+		PointIntersection intersection2 = intersectLineLineSegment(start2, end2, start1, end1);
+		if (intersection2.type == IntersectionType.NONE)
+			return intersection2;
+		if (intersection1.points.size() != intersection2.points.size()) {
+			System.out.println("Line segments disagree about number of intersections");
+			intersection1.type = IntersectionType.NONE;
+			return intersection1;
+		}
+		if (intersection1.points.size() == 1) {
+			if(intersection1.points.get(0).equals(intersection2.points.get(0))) {
+				if (intersection1.type == IntersectionType.LINE_CONTAINS_SEGMENT)
+					intersection1.type = IntersectionType.COLINEAR_SEGMENTS;
+				else
+					intersection1.type = IntersectionType.LINE;
+				return intersection1;
+			}
+			else {
+				System.out.println("Both segments found intersections, but they dont match");
+				intersection1.type = IntersectionType.NONE;
+				return intersection1;
+			}
+		}
+		else if (intersection1.points.size() == 2) {
+			if((intersection1.points.get(0).equals(intersection2.points.get(0)) ||
+					intersection1.points.get(0).equals(intersection2.points.get(1))) &&
+					(intersection1.points.get(1).equals(intersection2.points.get(0)) ||
+					intersection1.points.get(1).equals(intersection2.points.get(1)))) {
+				intersection1.type = IntersectionType.COLINEAR_SEGMENTS;
+				return intersection1;
+			}
+			else {
+				System.out.println("Both segments found different colinear intersection points");
+				intersection1.type = IntersectionType.NONE;
+				return intersection1;
+			}
+		}
+		System.out.println("Something really weird happened");
+		intersection1.type = IntersectionType.NONE;
+		return intersection1;
+	}
+	
 	private GVector computePluckerCoord(Vector3f start, Vector3f end) {
 		GVector ret = new GVector(6);
 		ret.setElement(0, start.x * end.y - end.x * start.y);
@@ -364,7 +604,6 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		ArrayList<Vector3f> hitPos = new ArrayList<Vector3f>();
 		PointIntersection intersection = new PointIntersection();
 		GVector e1, e2, e3;
-		Vector3f norm;
 		float s1, s2, s3;
 		e1 = computePluckerCoord(v0, v1);
 		e2 = computePluckerCoord(v1, v2);
@@ -417,6 +656,108 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		return hit; //return hitPos also!!
 	}
 	
+	public ArrayList<FacePointIntersectionPair> intersectLineSegment(Vector3f start, Vector3f end) {
+		GVector l = computePluckerCoord(start, end);
+		ArrayList<FacePointIntersectionPair> hit = new ArrayList<FacePointIntersectionPair>();
+		for (Face f: faces) {
+			PointIntersection intersection = intersectFace(f.v0.pos, f.v1.pos, f.v2.pos, l, start, end, false);
+			if (intersection.type == IntersectionType.NONE)
+				continue;
+			else if (intersection.type == IntersectionType.PROPER || 
+					intersection.type == IntersectionType.EDGE ||
+					intersection.type == IntersectionType.VERTEX) {
+				Vector3f vert0 = null;
+				Vector3f vert1 = null;
+				Vector3f vert2 = null;
+				if (intersection.type == IntersectionType.VERTEX) {
+					if (!f.v0.pos.equals(intersection.points.get(0))) {
+						vert0 = f.v0.pos;
+						vert1 = f.v1.pos;
+						vert2 = f.v2.pos;
+					}
+					else if (!f.v1.pos.equals(intersection.points.get(0))) {
+						vert0 = f.v1.pos;
+						vert1 = f.v0.pos;
+						vert2 = f.v2.pos;
+					}				}
+				else {
+					vert0 = f.v0.pos;
+					vert1 = f.v1.pos;
+					vert2 = f.v2.pos;
+				}
+				if (vert0 == null || vert1 == null || vert2 == null) {
+					System.out.println("************THIS REALLY SHOULDN'T HAPPEN**************");
+					continue;
+				}
+				GVector l2 = computePluckerCoord(start, vert0);
+				GVector l3 = computePluckerCoord(vert0, end);
+				GVector l4 = computePluckerCoord(vert1, vert2);
+				float s1 = computeSideOperator(l4, l3);
+				float s2 = computeSideOperator(l4, l2);
+				if (s1 == 0 || s2 == 0) {
+					if (intersection.type == IntersectionType.PROPER)
+						intersection.type = IntersectionType.PROPER_END;
+					else if (intersection.type == IntersectionType.VERTEX)
+						intersection.type = IntersectionType.VERTEX_END;
+					else if (intersection.type == IntersectionType.EDGE)
+						intersection.type = IntersectionType.EDGE_END;
+				}
+				else if ((s1 < 0 && s2 > 0) || (s1 > 0 && s2 < 0)) {
+					continue;
+				}
+				hit.add(new FacePointIntersectionPair(intersection, f));
+			}
+			else { //coplanar
+				PointIntersection inter1 = intersectLineSegmentLineSegment(start, end, f.v0.pos, f.v1.pos);
+				PointIntersection inter2 = intersectLineSegmentLineSegment(start, end, f.v1.pos, f.v2.pos);
+				PointIntersection inter3 = intersectLineSegmentLineSegment(start, end, f.v2.pos, f.v0.pos);
+				ArrayList<Vector3f> temp = new ArrayList<Vector3f>();
+				if (inter1.type == IntersectionType.LINE)
+					temp.add(inter1.points.get(0));
+				if (inter2.type == IntersectionType.LINE)
+					temp.add(inter2.points.get(0));
+				if (inter3.type == IntersectionType.LINE)
+					temp.add(inter3.points.get(0));
+				
+				if (temp.size() == 3) {
+					intersection.type = IntersectionType.COPLANAR_VERTEX_EDGE;
+					for(int i = 0; i < temp.size(); i++) {
+						for(int j = i+1; j < temp.size(); j++) {
+							if(temp.get(i).equals(temp.get(j))) {
+								temp.remove(j);
+								break;
+							}
+						}
+					}
+					intersection.points = temp;
+					hit.add(new FacePointIntersectionPair(intersection, f));
+					continue;
+				}
+				else if (temp.size() == 2) {
+					intersection.type = IntersectionType.COPLANAR_TWO_EDGES;
+					intersection.points = temp;
+					hit.add(new FacePointIntersectionPair(intersection, f));
+					continue;
+				}
+				else if (temp.size() == 1) {
+					intersection.type = IntersectionType.COPLANAR_EDGE;
+					intersection.points = temp;
+					hit.add(new FacePointIntersectionPair(intersection, f));
+					continue;
+				}
+				intersection.type = IntersectionType.COPLANAR_CONTAINED;
+				intersection.points = null;
+				hit.add(new FacePointIntersectionPair(intersection, f));
+				continue;
+			}	
+		}
+		return hit;
+	}
+	
+	/**********************************************************
+	 * End Intersection Calculation Stuff
+	 ********************************************************/
+	
 	
 	/** Set the vertices of this TetMesh to the given list of verts. */
 	public void setVerts(ArrayList<Vector3f> verts) {
@@ -458,13 +799,13 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		root = buildKDTree();
 		//printKDTree();
 		
-		//ArrayList<FacePointIntersectionPair> list = intersectLine(new Vector3f(0,0,0), new Vector3f(0,1,0));
-		//System.out.println(list.size());
-		/*
+		ArrayList<FacePointIntersectionPair> list = intersectLineSegment(new Vector3f(0,0,0), new Vector3f(0,1,0));
+		System.out.println(list.size());
+		
 		for (FacePointIntersectionPair pair : list) {
 			System.out.println(pair.type + ", " + pair.points);
 		}
-		*/
+		
 		
 	}
 	
@@ -661,28 +1002,6 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		public void addFace(Face f) {
 			faces.add(f);
 		}
-	}
-	
-	private enum IntersectionType {
-		NONE, PROPER, VERTEX, EDGE, COPLANAR_VERTEX, COPLANAR_TWO_EDGES,
-		COPLANAR_EDGE, COPLANAR_VERTEX_EDGE
-	}
-	
-	private class FacePointIntersectionPair {
-		public ArrayList<Vector3f> points;
-		public Face face;
-		public IntersectionType type;
-		
-		public FacePointIntersectionPair (PointIntersection intersection, Face f) {
-			this.type = intersection.type;
-			this.face = f;
-			this.points = intersection.points;	
-		}
-	}
-	
-	private class PointIntersection {
-		public ArrayList<Vector3f> points;
-		public IntersectionType type;
 	}
 	
 	private class TreeNode {
