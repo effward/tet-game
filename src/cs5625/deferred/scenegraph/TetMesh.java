@@ -361,7 +361,6 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			intersection.type = IntersectionType.NONE;
 			return intersection;
 		}
-		System.out.println(results); ///////////////////
 		Vector3f interPos = new Vector3f();
 		Vector3f dir = new Vector3f();
 		dir.sub(end2, start2);
@@ -799,13 +798,13 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		root = buildKDTree();
 		//printKDTree();
 		
-		ArrayList<FacePointIntersectionPair> list = intersectLineSegment(new Vector3f(0,0,0), new Vector3f(0,1,0));
-		System.out.println(list.size());
-		
+		//ArrayList<FacePointIntersectionPair> list = intersectLineSegment(new Vector3f(0,0,0), new Vector3f(0,1,0));
+		//System.out.println(list.size());
+		/*
 		for (FacePointIntersectionPair pair : list) {
 			System.out.println(pair.type + ", " + pair.points);
 		}
-		
+		*/
 		
 	}
 	
