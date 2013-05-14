@@ -30,7 +30,6 @@ public class Util
 		return ret;
 	}
 	
-	
 	/**
 	 * Rotates the tuple (vector or point) by a quaternion.
 	 * 

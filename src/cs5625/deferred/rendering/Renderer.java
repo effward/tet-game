@@ -317,13 +317,13 @@ public class Renderer
 				camera.up.x, camera.up.y, camera.up.z);
 		}
 		*/
-		
+		/*
 		if (camera.mIsPlanetCamera) {
 			glu.gluLookAt(cameraPosition.x, cameraPosition.y, cameraPosition.z, 
 				cameraPosition.x + camera.forward.x, cameraPosition.y + camera.forward.y, cameraPosition.z + camera.forward.z, 
 				cameraPosition.x + camera.up.x, cameraPosition.y + camera.up.y, cameraPosition.z + camera.up.z);
 		}
-		
+		*/
 		/*
 		if (camera.mIsPlanetCamera) {
 			glu.gluLookAt(cameraPosition.x, cameraPosition.y, cameraPosition.z, 
@@ -331,12 +331,11 @@ public class Renderer
 				0.0f, 1.0f, 0.0f);
 		}
 		*/
-		else {
-			/* Apply the camera transform to OpenGL. */
-			gl.glScalef(cameraScale, cameraScale, cameraScale);
-			gl.glRotatef(cameraOrientation.angle * 180.0f / (float)Math.PI, -cameraOrientation.x, -cameraOrientation.y, -cameraOrientation.z);
-			gl.glTranslatef(-cameraPosition.x, -cameraPosition.y, -cameraPosition.z);
-		}
+		/* Apply the camera transform to OpenGL. */
+		gl.glScalef(cameraScale, cameraScale, cameraScale);
+		gl.glRotatef(cameraOrientation.angle * 180.0f / (float)Math.PI, -cameraOrientation.x, -cameraOrientation.y, -cameraOrientation.z);
+		gl.glTranslatef(-cameraPosition.x, -cameraPosition.y, -cameraPosition.z);
+	
 		
 		/* Check for errors before rendering, to help isolate. */
 		OpenGLException.checkOpenGLError(gl);
@@ -656,7 +655,8 @@ public class Renderer
 		bindRequiredMeshAttributes(gl, mesh);
 		
 		//Only render front polys
-		gl.glPolygonMode(GL2.GL_BACK, GL2.GL_FILL);
+		gl.glCullFace(GL2.GL_FRONT);
+		gl.glEnable(GL2.GL_CULL_FACE);
 		
 		/* Render polygons. */
 		gl.glDrawElements(getOpenGLPrimitiveType(mesh.getVerticesPerPolygon()), 
@@ -959,7 +959,7 @@ public class Renderer
 			gl.glUniform1i(mUberShader.getUniformLocation(gl, "MaterialParams1Buffer"), 2);
 			gl.glUniform1i(mUberShader.getUniformLocation(gl, "MaterialParams2Buffer"), 3);
 			gl.glUniform1i(mUberShader.getUniformLocation(gl, "SilhouetteBuffer"), 4);
-			gl.glUniform3f(mUberShader.getUniformLocation(gl, "SkyColor"), 0.4f, 0.8f, 1.0f);
+			gl.glUniform3f(mUberShader.getUniformLocation(gl, "SkyColor"), 0.0f, 0.1f, 0.25f);
 			gl.glUniform1i(mUberShader.getUniformLocation(gl, "ShadowMap"), mShadowTextureLocation);
 			mUberShader.unbind(gl);			
 			
