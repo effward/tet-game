@@ -401,11 +401,6 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		createSurface();
 		root = buildKDTree();
 		//printKDTree();
-		ArrayList<Face> intersects = intersectLine(new Vector3f(0,0,0), new Vector3f(0,1,0));
-		for (Face f: intersects) {
-			System.out.println("Hit Face: (" + f.v0.pos + ", " + f.v1.pos + ", " + f.v2.pos + ")");
-		}
-		System.out.println("Size: " + intersects.size());
 		
 	}
 	
