@@ -40,6 +40,8 @@ public class ProceduralPlanetSceneController extends SceneController {
 	private float mMinRadius = 0.5f, mMaxRadius = 1.5f, mScale = 20.0f;
 	private int mSubdivs = 6;
 	
+	private Geometry planet;
+	
 	public ProceduralPlanetSceneController(float min, float max) {
 		mMinRadius = min;
 		mMaxRadius = max;
@@ -81,7 +83,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 		System.out.println("converting to tetmesh");
 		
 		//Convert heightmesh into a tetmesh.
-		Geometry planet = new Geometry();
+		planet = new Geometry();
 		TetMesh planetMesh = new TetMesh();
 		
 		ArrayList<Vertex> vertsHM = planetHM.getVerts();
@@ -315,6 +317,17 @@ public class ProceduralPlanetSceneController extends SceneController {
 	public void mousePressed(MouseEvent mouse)	{
 		/* Remember the starting point of a drag. */
 		mLastMousePos = mouse.getPoint();
+	}
+	
+	@Override
+	public void mouseClicked(MouseEvent arg0)
+	{
+		Vector3f dir = new Vector3f(0f, 0f, -1f);
+		Util.rotateTuple(mCamera.getOrientation(), dir);
+		TetMesh mesh = (TetMesh)(planet.getMeshes().get(0));
+		dir.add(mCamera.getPosition(), dir);
+		mesh.deleteTet(new Vector3f(mCamera.getPosition()), dir);
+		requiresRender();
 	}
 	
 	

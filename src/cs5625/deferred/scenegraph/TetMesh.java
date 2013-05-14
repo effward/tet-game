@@ -235,6 +235,155 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		return node;
 	}
 	
+	public void deleteTet(Vector3f start, Vector3f end) {
+		ArrayList<FacePointIntersectionPair> intersections = intersectLine(start, end);
+		Point3f pos = new Point3f(start);
+		Face f = null;
+		float min_dist = Float.MAX_VALUE;
+		for (FacePointIntersectionPair pair : intersections) {
+			for (int i = 0; i < pair.points.size(); i++) {
+				float d = pos.distance(new Point3f(pair.points.get(i)));
+				if (d < min_dist) {
+					min_dist = d;
+					f = pair.face;
+				}
+			}
+		}
+		if (f == null)
+			return;
+		if (f.t0 != null) {
+			this.tets.remove(f.t0);
+			if (!f.t0.f0.equals(f)) {
+				if (f.t0.f0.t1 == null){
+					System.out.println("Removing face");
+					this.faces.remove(f.t0.f0);
+					this.interfaces.remove(f.t0.f0);
+				}
+				else {
+					if (f.t0.f0.t0.equals(f.t0)) {
+						f.t0.f0.t0 = f.t0.f0.t1;
+					}
+					else {
+						f.t0.f0.t1 = null;
+					}
+				}
+			}
+			if (f== null)
+				System.out.println("F");
+			if (f.t0== null)
+				System.out.println("T0");
+			if (f.t0.f1 == null)
+				System.out.println("f1");
+			if (f.t0.f1.t1 == null)
+				System.out.println("t1");
+			if (!f.t0.f1.equals(f)) {
+				if (f.t0.f1.t1 == null) {
+					this.faces.remove(f.t0.f1);
+					this.interfaces.remove(f.t0.f1);
+				}
+				else {
+					if (f.t0.f1.t0.equals(f.t0)) {
+						f.t0.f1.t0 = f.t0.f1.t1;
+					}
+					else {
+						f.t0.f1.t1 = null;
+					}
+				}
+			}
+			if (!f.t0.f2.equals(f)) {
+				if (f.t0.f2.t1 == null) {
+					this.faces.remove(f.t0.f2);
+					this.interfaces.remove(f.t0.f2);
+				}
+				else {
+					if (f.t0.f2.t0.equals(f.t0)) {
+						f.t0.f2.t0 = f.t0.f2.t1;
+					}
+					else {
+						f.t0.f2.t1 = null;
+					}
+				}
+			}
+			if (!f.t0.f3.equals(f)) {
+				if (f.t0.f3.t1 == null) {
+					this.faces.remove(f.t0.f3);
+					this.interfaces.remove(f.t0.f3);
+				}
+				else {
+					if (f.t0.f3.t0.equals(f.t0)) {
+						f.t0.f3.t0 = f.t0.f3.t1;
+					}
+					else {
+						f.t0.f3.t1 = null;
+					}
+				}
+			}
+		}
+		if (f.t1 != null) {
+			this.tets.remove(f.t1);
+			if (!f.t1.f0.equals(f)) {
+				if (f.t1.f0.t1 == null) {
+					this.faces.remove(f.t1.f0);
+					this.interfaces.remove(f.t1.f0);
+				}
+				else {
+					if (f.t1.f0.t0.equals(f.t1)) {
+						f.t1.f0.t0 = f.t1.f0.t1;
+					}
+					else {
+						f.t1.f0.t1 = null;
+					}
+				}
+			}
+			if (!f.t1.f1.equals(f)) {
+				if (f.t1.f1.t1 == null) {
+					this.faces.remove(f.t1.f1);
+					this.interfaces.remove(f.t1.f1);
+				}
+				else {
+					if (f.t1.f1.t0.equals(f.t1)) {
+						f.t1.f1.t0 = f.t1.f1.t1;
+					}
+					else {
+						f.t1.f1.t1 = null;
+					}
+				}
+			}
+			if (!f.t1.f2.equals(f)) {
+				if (f.t1.f2.t1 == null) {
+					this.faces.remove(f.t1.f2);
+					this.interfaces.remove(f.t1.f2);
+				}
+				else {
+					if (f.t1.f2.t0.equals(f.t1)) {
+						f.t1.f2.t0 = f.t1.f2.t1;
+					}
+					else {
+						f.t1.f2.t1 = null;
+					}
+				}
+			}
+			if (!f.t1.f3.equals(f)) {
+				if (f.t1.f3.t1 == null) {
+					this.faces.remove(f.t1.f3);
+					this.interfaces.remove(f.t1.f3);
+				}
+				else {
+					if (f.t1.f3.t0.equals(f.t1)) {
+						f.t1.f3.t0 = f.t1.f3.t1;
+					}
+					else {
+						f.t1.f3.t1 = null;
+					}
+				}
+			}
+		}
+		this.faces.remove(f);
+		this.interfaces.remove(f);
+		System.out.println("Deleted tet!");
+		createSurface();
+		
+	}
 	
 	/**********************************************************
 	 * Start Intersection Calculation Stuff
@@ -1124,6 +1273,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 				((this.v1 == f.v0) || (this.v1 == f.v1) || (this.v1 == f.v2)) &&
 				((this.v2 == f.v0) || (this.v2 == f.v1) || (this.v2 == f.v2));
 		}
+		
 	}
 	
 	/** A tetrahedron. */
