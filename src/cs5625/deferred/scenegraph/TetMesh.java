@@ -257,8 +257,112 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 				a.getElement(5) * b.getElement(1));
 	}
 	
-	private ArrayList<Vector3f> intersectFace(Vector3f v0, Vector3f v1, Vector3f v2, GVector line, Vector3f start, Vector3f end, boolean recurrsing) {
+	private Vector3f computeIntersectionPoint(Vector3f v0, Vector3f v1, Vector3f v2, Vector3f start, Vector3f end) {
+		Vector3f norm;
+		Vector3f edge1 = new Vector3f();
+		Vector3f edge2 = new Vector3f();
+		edge1.sub(v1, v0);
+		edge2.sub(v2, v0);
+		norm = new Vector3f();
+		norm.cross(edge1, edge2);
+		norm.normalize();
+		Vector3f temp = new Vector3f();
+		temp.sub(v0, start);
+		float numerator = temp.dot(norm);
+		Vector3f temp2 = new Vector3f();
+		temp2.sub(end, start);
+		temp2.normalize();
+		float denominator = temp2.dot(norm);
+		if (denominator != 0) {
+			Vector3f interPos = new Vector3f();
+			temp2.scale(numerator/denominator);
+			interPos.add(temp2, start);
+			return interPos;
+		}
+		else {
+			System.out.println("The two intersection algorithms disagree");
+			return null;
+		}
+	}
+	
+	private PointIntersection computeCoplanarIntersectionPoints(Vector3f v0, Vector3f v1, Vector3f v2, GVector line, Vector3f start, Vector3f end) {
+		PointIntersection intersection = new PointIntersection();
+		Vector3f norm;
+		Vector3f edge1 = new Vector3f();
+		Vector3f edge2 = new Vector3f();
+		edge1.sub(v1, v0);
+		edge2.sub(v2, v0);
+		norm = new Vector3f();
+		norm.cross(edge1, edge2);
+		norm.normalize();
+		// create a point that is not co-planar
+		Vector3f p = new Vector3f();
+		p.add(v0, norm);
+		PointIntersection interPos1 = intersectFace(v0, v1, p, line, start, end, true);
+		PointIntersection interPos2 = intersectFace(v1, v2, p, line, start, end, true);
+		PointIntersection interPos3 = intersectFace(v2, v0, p, line, start, end, true);
+		ArrayList<Vector3f> temp = new ArrayList<Vector3f>();
+		if (interPos1.type == IntersectionType.NONE && interPos2.type == IntersectionType.NONE && interPos3.type == IntersectionType.NONE) {
+			intersection.type = IntersectionType.NONE;
+			return intersection;
+		}
+		else if ((interPos1.type == IntersectionType.NONE && interPos2.type == IntersectionType.VERTEX && interPos3.type == IntersectionType.VERTEX) ||
+				(interPos2.type == IntersectionType.NONE && interPos1.type == IntersectionType.VERTEX && interPos3.type == IntersectionType.VERTEX) ||
+				(interPos3.type == IntersectionType.NONE && interPos2.type == IntersectionType.VERTEX && interPos1.type == IntersectionType.VERTEX)) {
+			intersection.type = IntersectionType.COPLANAR_VERTEX;
+			if (interPos1.type != IntersectionType.NONE)
+				temp.addAll(interPos1.points);
+			else if (interPos2.type != IntersectionType.NONE)
+				temp.addAll(interPos2.points);
+			else if (interPos3.type != IntersectionType.NONE)
+				temp.addAll(interPos3.points);
+		}
+		else if ((interPos1.type == IntersectionType.NONE && interPos2.type == IntersectionType.EDGE && interPos3.type == IntersectionType.EDGE) ||
+				(interPos2.type == IntersectionType.NONE && interPos1.type == IntersectionType.EDGE && interPos3.type == IntersectionType.EDGE) ||
+				(interPos3.type == IntersectionType.NONE && interPos2.type == IntersectionType.EDGE && interPos1.type == IntersectionType.EDGE)) {
+			intersection.type = IntersectionType.COPLANAR_TWO_EDGES;
+			if (interPos1.type != IntersectionType.NONE)
+				temp.addAll(interPos1.points);
+			if (interPos2.type != IntersectionType.NONE)
+				temp.addAll(interPos2.points);
+			if (interPos3.type != IntersectionType.NONE)
+				temp.addAll(interPos3.points);
+		}
+		else if ((interPos1.type == IntersectionType.COPLANAR_VERTEX && interPos2.type == IntersectionType.VERTEX && interPos3.type == IntersectionType.VERTEX) ||
+				(interPos2.type == IntersectionType.COPLANAR_VERTEX && interPos1.type == IntersectionType.VERTEX && interPos3.type == IntersectionType.VERTEX) ||
+				(interPos3.type == IntersectionType.COPLANAR_VERTEX && interPos2.type == IntersectionType.VERTEX && interPos1.type == IntersectionType.VERTEX)) {
+			intersection.type = IntersectionType.COPLANAR_EDGE;
+			if (interPos1.type == IntersectionType.VERTEX)
+				temp.addAll(interPos1.points);
+			if (interPos2.type == IntersectionType.VERTEX)
+				temp.addAll(interPos2.points);
+			if (interPos3.type == IntersectionType.VERTEX)
+				temp.addAll(interPos3.points);
+		}
+		else if ((interPos1.type == IntersectionType.EDGE && interPos2.type == IntersectionType.VERTEX && interPos3.type == IntersectionType.VERTEX) ||
+				(interPos2.type == IntersectionType.EDGE && interPos1.type == IntersectionType.VERTEX && interPos3.type == IntersectionType.VERTEX) ||
+				(interPos3.type == IntersectionType.EDGE && interPos2.type == IntersectionType.VERTEX && interPos1.type == IntersectionType.VERTEX)) {
+			intersection.type = IntersectionType.COPLANAR_VERTEX_EDGE;
+			if (interPos1.type == IntersectionType.VERTEX)
+				temp.addAll(interPos1.points);
+			else if (interPos2.type == IntersectionType.VERTEX)
+				temp.addAll(interPos2.points);
+			else if (interPos3.type == IntersectionType.VERTEX)
+				temp.addAll(interPos3.points);
+			if (interPos1.type == IntersectionType.EDGE)
+				temp.addAll(interPos1.points);
+			else if (interPos2.type == IntersectionType.EDGE)
+				temp.addAll(interPos2.points);
+			else if (interPos3.type == IntersectionType.EDGE)
+				temp.addAll(interPos3.points);
+		}
+		intersection.points = temp;
+		return intersection;
+	}
+	
+	private PointIntersection intersectFace(Vector3f v0, Vector3f v1, Vector3f v2, GVector line, Vector3f start, Vector3f end, boolean recurrsing) {
 		ArrayList<Vector3f> hitPos = new ArrayList<Vector3f>();
+		PointIntersection intersection = new PointIntersection();
 		GVector e1, e2, e3;
 		Vector3f norm;
 		float s1, s2, s3;
@@ -271,92 +375,44 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		
 		if (s1 == 0 && s2 == 0 && s3 == 0) {
 			//The line and face are coplanar
-			Vector3f edge1 = new Vector3f();
-			Vector3f edge2 = new Vector3f();
-			edge1.sub(v1, v0);
-			edge2.sub(v2, v0);
-			norm = new Vector3f();
-			norm.cross(edge1, edge2);
-			norm.normalize();
-			// create a point that is not co-planar
-			Vector3f p = new Vector3f();
-			p.add(v0, norm);
-			if (!recurrsing) {
-				ArrayList<Vector3f> interPos1 = intersectFace(v0, v1, p, line, start, end, true);
-				ArrayList<Vector3f> interPos2 = intersectFace(v1, v2, p, line, start, end, true);
-				ArrayList<Vector3f> interPos3 = intersectFace(v2, v0, p, line, start, end, true);
-				if (interPos1 == null && interPos2 == null && interPos3 == null)
-					return null;
-				if (interPos1 != null)
-					hitPos.addAll(interPos1);
-				if (interPos2 != null)
-					hitPos.addAll(interPos2);
-				if (interPos3 != null)
-					hitPos.addAll(interPos3);
-				for (int i = 0; i < hitPos.size(); i++) {
-					for (int j = i+1; j < hitPos.size(); j++) {
-						if (hitPos.get(i).equals(hitPos.get(j))) {
-							ArrayList<Vector3f> temp = new ArrayList<Vector3f>();
-							temp.add(hitPos.get(i));
-							return temp;
-						}	
-					}
-				}
-				return hitPos;
+			if (recurrsing) {
+				intersection.type = IntersectionType.COPLANAR_VERTEX;
+				return intersection;
 			}
-			else {
-				return hitPos;
-			}
-			
+			return computeCoplanarIntersectionPoints(v0, v1, v2, line, start, end);
 		}
 		else {
-			// if s1, s2, and s3 do not all have the same sign
-			if (!((s1 <= 0 && s2 <= 0 && s3 <= 0) || (s1 >= 0 && s2 >= 0 && s3 >= 0) || (s1 == 0 && s2 == 0 && s3 == 0))) {
-				//no intersection
-				return null;
+			Vector3f interPos = null;
+			if ((s1 < 0 && s2 < 0 && s3 < 0) || (s1 > 0 && s2 > 0 && s3 > 0)) {
+				intersection.type = IntersectionType.PROPER;
+				interPos = computeIntersectionPoint(v0, v1, v2, start, end);
 			}
-			// if s1, s2, and s3 are all less than (or greater than) zero
-			//if ((s1 < 0 && s2 < 0 && s3 < 0) || (s1 > 0 && s2 > 0 && s3 > 0)) {
-				//line passes through middle of triangle
-			Vector3f edge1 = new Vector3f();
-			Vector3f edge2 = new Vector3f();
-			edge1.sub(v1, v0);
-			edge2.sub(v2, v0);
-			norm = new Vector3f();
-			norm.cross(edge1, edge2);
-			norm.normalize();
-			Vector3f temp = new Vector3f();
-			temp.sub(v0, start);
-			float numerator = temp.dot(norm);
-			Vector3f temp2 = new Vector3f();
-			temp2.sub(end, start);
-			temp2.normalize();
-			float denominator = temp2.dot(norm);
-			if (denominator != 0) {
-				Vector3f interPos = new Vector3f();
-				temp2.scale(numerator/denominator);
-				interPos.add(temp2, start);
-				hitPos.add(interPos);
-				return hitPos;
+			else if ((s1 == 0 && s2*s3 > 0) || (s2 == 0 && s1*s3 > 0) || (s3 == 0 && s2*s1 > 0)) {
+				intersection.type = IntersectionType.EDGE;
+				interPos = computeIntersectionPoint(v0, v1, v2, start, end);
 			}
-			else {
-				System.out.println("The two intersection algorithms disagree");
-				return null;
+			else if ((s1 == 0 && s2 == 0) || (s1 == 0 && s3 == 0) || (s3 == 0 && s2 == 0)) {
+				intersection.type = IntersectionType.VERTEX;
+				interPos = computeIntersectionPoint(v0, v1, v2, start, end);
 			}
+			
+			if (interPos == null) {
+				intersection.type = IntersectionType.NONE;
+				return intersection;
+			}
+			hitPos.add(interPos);
+			intersection.points = hitPos;
+			return intersection;
 		}
 	}
 	
-	public ArrayList<Face> intersectLine(Vector3f start, Vector3f end) {
+	public ArrayList<FacePointIntersectionPair> intersectLine(Vector3f start, Vector3f end) {
 		GVector l = computePluckerCoord(start, end);
-		ArrayList<Face> hit = new ArrayList<Face>();
-		ArrayList<Vector3f> hitPos = new ArrayList<Vector3f>();
+		ArrayList<FacePointIntersectionPair> hit = new ArrayList<FacePointIntersectionPair>();
 		for (Face f : faces) {
-			ArrayList<Vector3f> interPos = intersectFace(f.v0.pos, f.v1.pos, f.v2.pos, l, start, end, false);
-			if (interPos != null && interPos.size() != 0) {
-				hit.add(f);
-				for (Vector3f pos : interPos)
-					hitPos.add(pos);
-			}
+			PointIntersection interPos = intersectFace(f.v0.pos, f.v1.pos, f.v2.pos, l, start, end, false);
+			if (interPos.type != IntersectionType.NONE)
+				hit.add(new FacePointIntersectionPair(interPos, f));
 		}
 		return hit; //return hitPos also!!
 	}
@@ -401,6 +457,14 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		createSurface();
 		root = buildKDTree();
 		//printKDTree();
+		
+		//ArrayList<FacePointIntersectionPair> list = intersectLine(new Vector3f(0,0,0), new Vector3f(0,1,0));
+		//System.out.println(list.size());
+		/*
+		for (FacePointIntersectionPair pair : list) {
+			System.out.println(pair.type + ", " + pair.points);
+		}
+		*/
 		
 	}
 	
@@ -597,6 +661,28 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		public void addFace(Face f) {
 			faces.add(f);
 		}
+	}
+	
+	private enum IntersectionType {
+		NONE, PROPER, VERTEX, EDGE, COPLANAR_VERTEX, COPLANAR_TWO_EDGES,
+		COPLANAR_EDGE, COPLANAR_VERTEX_EDGE
+	}
+	
+	private class FacePointIntersectionPair {
+		public ArrayList<Vector3f> points;
+		public Face face;
+		public IntersectionType type;
+		
+		public FacePointIntersectionPair (PointIntersection intersection, Face f) {
+			this.type = intersection.type;
+			this.face = f;
+			this.points = intersection.points;	
+		}
+	}
+	
+	private class PointIntersection {
+		public ArrayList<Vector3f> points;
+		public IntersectionType type;
 	}
 	
 	private class TreeNode {
