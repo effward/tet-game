@@ -275,8 +275,35 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		createSurface(); //would be nice to not have to do this every time.
 	}
 	
-	/** Return the first Tet encountered along the line between start and end. */
-	public Tet findFirstTetAlongLine(Vector3f start, Vector3f end) {
+	public Tet createTetAlongLine(Vector3f start, Vector3f end) {
+		Face f = findFirstFaceAlongLine(start, end);
+		if (f == null)
+			return null; //and no tets were created that day
+		if (f.t1 == null) {
+			Vector3f midpt = new Vector3f(f.center);
+			//midpt.add(f.v0.pos, f.v1.pos);
+			//midpt.scale(.5f);
+			//midpt.add(f.v2.pos);
+			//midpt.scale(.5f);
+			Vector3f edge1 = new Vector3f();
+			edge1.sub(f.v1.pos, f.v0.pos);
+			Vector3f edge2 = new Vector3f();
+			edge2.sub(f.v2.pos, f.v0.pos);
+			Vector3f norm = new Vector3f();
+			norm.cross(edge1, edge2);
+			norm.normalize();
+			float l = (edge1.length() + edge2.length());
+			norm.scale(l);
+			midpt.add(norm);
+			Vert created = new Vert(midpt);
+			verts.add(created);
+			return new Tet(f.v0, f.v1, f.v2, created, 0);
+		}
+		return null;
+	}
+	
+	/** Return the first face encountered along the line between start and end. */
+	private Face findFirstFaceAlongLine(Vector3f start, Vector3f end) {
 		ArrayList<FacePointIntersectionPair> intersections = intersectLine(start, end);
 		Point3f pos = new Point3f(start);
 		Face f = null;
@@ -290,6 +317,12 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 				}
 			}
 		}
+		return f;
+	}
+	
+	/** Return the first Tet encountered along the line between start and end. */
+	private Tet findFirstTetAlongLine(Vector3f start, Vector3f end) {
+		Face f = findFirstFaceAlongLine(start, end);
 		if (f == null) {
 			return null; //and no tets were found that day
 		}
@@ -303,6 +336,14 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	public void deleteFirstTetAlongLine(Vector3f start, Vector3f end) {
 		Tet remove = findFirstTetAlongLine(start, end);
 		if (remove != null) deleteTet(remove);
+	}
+	
+	public void createTetAtFirstFaceAlongLine(Vector3f start, Vector3f end) {
+		Tet created = createTetAlongLine(start, end);
+		if (created != null)  {
+			tets.add(created);
+			createSurface();
+		}
 	}
 	
 	/**********************************************************

@@ -281,6 +281,14 @@ public class ProceduralPlanetSceneController extends SceneController {
 			mRenderer.setRenderWireframes(!mRenderer.getRenderWireframes());
 			requiresRender();
 		}	
+		else if (c == 'c') {
+			Vector3f dir = new Vector3f(0f, 0f, -1f);
+			Util.rotateTuple(mCamera.getOrientation(), dir);
+			TetMesh mesh = (TetMesh)(planet.getMeshes().get(0));
+			dir.add(mCamera.getPosition(), dir);
+			mesh.createTetAtFirstFaceAlongLine(new Vector3f(mCamera.getPosition()), dir);
+			requiresRender();
+		}
 		else if (c == 'o') {
 			//Swap camera modes...
 			switch(mCamera.getMode()) {
@@ -387,11 +395,6 @@ public class ProceduralPlanetSceneController extends SceneController {
 			break;
 		}
 		case WALK: {
-			float scale = 0.005f;
-			
-			//Update camera heading
-			mCamera.deltaTheta += deltaX * scale;
-			mCamera.deltaPhi -= deltaY * scale;
 			requiresRender();
 			break;
 		}
