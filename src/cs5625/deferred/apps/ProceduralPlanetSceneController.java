@@ -62,21 +62,21 @@ public class ProceduralPlanetSceneController extends SceneController {
 
 		
 		System.out.println("subdividing");
-		planetHM.subdivide(Math.max(mSubdivs - 3, 0), false);
+		//planetHM.subdivide(Math.max(mSubdivs - 3, 0), false);
 		
 		System.out.println("saving frequencies");
-		planetHM.saveFrequency(0, 20);
+		//planetHM.saveFrequency(0, 20);
 		
 		System.out.println("rerandomizing");
-		planetHM.randomize(mMinRadius, mMaxRadius);
-		planetHM.smooth(3);
-		planetHM.randomizeRelative(0.0f, 2.0f);
+		//planetHM.randomize(mMinRadius, mMaxRadius);
+		//planetHM.smooth(3);
+		//planetHM.randomizeRelative(0.0f, 2.0f);
 		
 		System.out.println("smoothing according to saved smooth values");
-		planetHM.smooth(-1);
+		//planetHM.smooth(-1);
 		
 		System.out.println("Eroding");
-		planetHM.erode(10, 0.2f);
+		//planetHM.erode(10, 0.2f);
 
 		planetHM.scale(mScale, 0.0f);
 		

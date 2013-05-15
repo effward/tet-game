@@ -236,6 +236,11 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	}
 	
 	public void deleteTet(Vector3f start, Vector3f end) {
+		System.out.println("Faces: " + faces.size());
+		System.out.println("Tets: " + tets.size());
+		System.out.println("Vertices: " + verts.size());
+		System.out.println("Coord: " + faces.get(0).v0.pos + ", " + faces.get(0).v1.pos + ", " + faces.get(0).v2.pos);
+		
 		ArrayList<FacePointIntersectionPair> intersections = intersectLine(start, end);
 		Point3f pos = new Point3f(start);
 		Face f = null;
@@ -418,11 +423,19 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	
 	
 	//returns a float scalar of how far into segment 2 the intersection point is, or -1 if no intersection
-	private ArrayList<Float> intersect2DSegments(Vector3f start1, Vector3f end1, Vector3f start2, Vector3f end2) {
+	private ArrayList<Float> intersect2DSegments(Vector3f start1, Vector3f end1, Vector3f start2, Vector3f end2, boolean axis) {
 		ArrayList<Float> ret = new ArrayList<Float>();
-		Vector3f u = new Vector3f(end1.x-start1.x, end1.y-start1.y, 0);
-		Vector3f v = new Vector3f(end2.x-start2.x, end2.y-start2.y, 0);
-		Vector3f w = new Vector3f(start1.x-start2.x, start1.y-start2.y, 0);
+		Vector3f u, v, w;
+		if (axis) {
+			u = new Vector3f(end1.x-start1.x, end1.y-start1.y, 0);
+			v = new Vector3f(end2.x-start2.x, end2.y-start2.y, 0);
+			w = new Vector3f(start1.x-start2.x, start1.y-start2.y, 0);
+		}
+		else {
+			u = new Vector3f(0, end1.y-start1.y, end1.z-start1.z);
+			v = new Vector3f(0, end2.y-start2.y, end2.z-start2.z);
+			w = new Vector3f(0, start1.y-start2.y, start1.z-start2.z);
+		}
 		float d = perpProduct(u, v);
 		if (d == 0) {
 			float t0, t1;
@@ -470,8 +483,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		return ret;
 	}
 	
-	//Doesn't actually find the intersection between a line and a line segment, but rather two line segments
-	private PointIntersection intersectLineLineSegment(Vector3f start1, Vector3f end1, Vector3f start2, Vector3f end2) {
+	private PointIntersection intersectLineLineSegment(Vector3f start1, Vector3f end1, Vector3f start2, Vector3f end2, boolean needCoord) {
 		PointIntersection intersection = new PointIntersection();
 		GVector line = computePluckerCoord(start1, end1);
 		GVector segment = computePluckerCoord(start2, end2);
@@ -504,7 +516,9 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		else {
 			intersection.type = IntersectionType.LINE_END;
 		}
-		ArrayList<Float> results = intersect2DSegments(start1, end1, start2, end2);
+		if (!needCoord)
+			return intersection;
+		ArrayList<Float> results = intersect2DSegments(start1, end1, start2, end2, true);
 		if (results.get(0).equals(-1f)) {
 			System.out.println("The two intersection algs disagree");
 			intersection.type = IntersectionType.NONE;
@@ -579,10 +593,10 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	}
 	
 	private PointIntersection intersectLineSegmentLineSegment(Vector3f start1, Vector3f end1, Vector3f start2, Vector3f end2) {
-		PointIntersection intersection1 = intersectLineLineSegment(start1, end1, start2, end2);
+		PointIntersection intersection1 = intersectLineLineSegment(start1, end1, start2, end2, true);
 		if (intersection1.type == IntersectionType.NONE)
 			return intersection1;
-		PointIntersection intersection2 = intersectLineLineSegment(start2, end2, start1, end1);
+		PointIntersection intersection2 = intersectLineLineSegment(start2, end2, start1, end1, true);
 		if (intersection2.type == IntersectionType.NONE)
 			return intersection2;
 		if (intersection1.points.size() != intersection2.points.size()) {
@@ -600,6 +614,8 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			}
 			else {
 				System.out.println("Both segments found intersections, but they dont match");
+				System.out.println("Intersect1: " + intersection1.points.get(0));
+				System.out.println("Intersect2: " + intersection2.points.get(0));
 				intersection1.type = IntersectionType.NONE;
 				return intersection1;
 			}
@@ -796,6 +812,10 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	public ArrayList<FacePointIntersectionPair> intersectLine(Vector3f start, Vector3f end) {
 		GVector l = computePluckerCoord(start, end);
 		ArrayList<FacePointIntersectionPair> hit = new ArrayList<FacePointIntersectionPair>();
+		TreeNode current = root;
+		while(current != null) {
+			
+		}
 		for (Face f : faces) {
 			PointIntersection interPos = intersectFace(f.v0.pos, f.v1.pos, f.v2.pos, l, start, end, false);
 			if (interPos.type != IntersectionType.NONE)
@@ -947,8 +967,9 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		root = buildKDTree();
 		//printKDTree();
 		
-		//ArrayList<FacePointIntersectionPair> list = intersectLineSegment(new Vector3f(0,0,0), new Vector3f(0,1,0));
-		//System.out.println(list.size());
+		System.out.println("Starting intersect line segment");
+		ArrayList<FacePointIntersectionPair> list = intersectLineSegment(new Vector3f(0,0,0), new Vector3f(0,1,0));
+		System.out.println(list.size());
 		/*
 		for (FacePointIntersectionPair pair : list) {
 			System.out.println(pair.type + ", " + pair.points);
