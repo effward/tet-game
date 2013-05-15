@@ -41,7 +41,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 	//Default planet values
 	private float mMinRadius = 0.5f, mMaxRadius = 1.5f, mScale = 20.0f;
 
-	private int mSubdivs = 5;
+	private int mSubdivs = 6;
 	private boolean accelerate = false;
 
 	
@@ -69,7 +69,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 		Heightmesh planetHM = new Heightmesh();
 		planetHM.createIcosa();
 		
-		planetHM.subdivide(2, true);
+		//planetHM.subdivide(2, true);
 		
 		/*
 		System.out.println("creating variation basis");
