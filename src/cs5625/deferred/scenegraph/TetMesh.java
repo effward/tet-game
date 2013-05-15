@@ -1166,8 +1166,8 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		//And texture coords
 		for (int i = 0; i < verts.size(); i++) {
 			Vector3f pos = verts.get(i).pos;
-			texArr[2 * i] = (float)(Math.atan2(pos.z, pos.x) / (2*Math.PI) * 40);
-			texArr[2 * i + 1] = (float)(Math.atan2(pos.y, Math.sqrt(pos.x * pos.x + pos.z * pos.z)) / (2*Math.PI) * 40);
+			texArr[2 * i] = (float)(Math.atan2(pos.z, pos.x) / (2*Math.PI) * 40) + pos.length() / 5.0f;
+			texArr[2 * i + 1] = (float)(Math.atan2(pos.y, Math.sqrt(pos.x * pos.x + pos.z * pos.z)) / (2*Math.PI) * 40) + pos.length() / 5.0f;
 		}
 		
 		int v0, v1, v2;
@@ -1253,7 +1253,6 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	public Face addFace (Face f) {
 		Face a = hasFace(f);
 		if (a == null) {
-			System.out.println("Adding new face!"); //TODO remove
 			faces.add(f);
 			f.v0.addFace(f);
 			f.v1.addFace(f);
