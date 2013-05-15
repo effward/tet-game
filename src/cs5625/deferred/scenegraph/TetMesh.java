@@ -235,6 +235,75 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		return node;
 	}
 	
+	/** When deleting a tet, used to delete faces. */
+	public void removeFaceIfNecessary(Face f, Tet t, int i) {
+		if (f.t1 == null) { //was a boundary
+			faces.remove(f); //cull from TetMesh's faces list.
+		}
+		else { // had a second tet - have to rearrange 
+			if (f.t0 == t) {
+				//shift face's second tet to first slot.
+				f.t0 = f.t1;
+				f.t1 = null;
+				//Swap vertex order so that the face is now pointing outwards.
+				Vert temp = f.v2; 
+				f.v2 = f.v1;
+				f.v1 = temp;
+			}
+			else if (f.t1 == t) {
+				f.t1 = null;
+			}
+			else {
+				System.out.println("neither of f" + i + "'s tets was toRemove!");
+			}
+		}
+
+	}
+	
+	/** Remove the given tetrahedron. */
+	public void deleteTet(Tet toRemove) {
+		//remove tet from tets list
+		this.tets.remove(toRemove);
+		
+		//cull faces if necessary
+		removeFaceIfNecessary(toRemove.f0, toRemove, 0);
+		removeFaceIfNecessary(toRemove.f1, toRemove, 1);
+		removeFaceIfNecessary(toRemove.f2, toRemove, 2);
+		removeFaceIfNecessary(toRemove.f3, toRemove, 3);
+	
+		System.out.println("Deleted tet!");
+		createSurface(); //would be nice to not have to do this every time.
+	}
+	
+	/** Return the first Tet encountered along the line between start and end. */
+	public Tet findFirstTetAlongLine(Vector3f start, Vector3f end) {
+		ArrayList<FacePointIntersectionPair> intersections = intersectLine(start, end);
+		Point3f pos = new Point3f(start);
+		Face f = null;
+		float min_dist = Float.MAX_VALUE;
+		for (FacePointIntersectionPair pair : intersections) {
+			for (int i = 0; i < pair.points.size(); i++) {
+				float d = pos.distance(new Point3f(pair.points.get(i)));
+				if (d < min_dist) {
+					min_dist = d;
+					f = pair.face;
+				}
+			}
+		}
+		if (f == null) {
+			return null; //and no tets were found that day
+		}
+		if (f.t1 != null) {
+			System.out.println("Face clicked on had a second tet!");
+		}
+		return f.t0;
+	}
+	
+	/** Delete first tet encountered along the line between start and end. */
+	public void deleteFirstTetAlongLine(Vector3f start, Vector3f end) {
+		Tet remove = findFirstTetAlongLine(start, end);
+		if (remove != null) deleteTet(remove);
+	}
 	
 	/**********************************************************
 	 * Start Intersection Calculation Stuff
@@ -1124,6 +1193,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 				((this.v1 == f.v0) || (this.v1 == f.v1) || (this.v1 == f.v2)) &&
 				((this.v2 == f.v0) || (this.v2 == f.v1) || (this.v2 == f.v2));
 		}
+		
 	}
 	
 	/** A tetrahedron. */

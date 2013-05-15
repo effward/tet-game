@@ -42,6 +42,8 @@ public class ProceduralPlanetSceneController extends SceneController {
 	private float mMinRadius = 0.5f, mMaxRadius = 1.5f, mScale = 20.0f;
 	private int mSubdivs = 5;
 	
+	private Geometry planet;
+	
 	public ProceduralPlanetSceneController(float min, float max) {
 		mMinRadius = min;
 		mMaxRadius = max;
@@ -58,10 +60,13 @@ public class ProceduralPlanetSceneController extends SceneController {
 		TetMesh waterMesh = waterHM.getTetmesh();
 		*/
 		
+		
+		
 		//Generate planetary heightmesh...
 		Heightmesh planetHM = new Heightmesh();
 		planetHM.createIcosa();
 		
+		/*
 		System.out.println("creating variation basis");
 		planetHM.subdivide(Math.min(3, mSubdivs), true);
 		planetHM.randomize(mMinRadius, mMaxRadius);
@@ -87,17 +92,21 @@ public class ProceduralPlanetSceneController extends SceneController {
 		
 		System.out.println("smoothing one last time");
 		planetHM.smoothFrequencies(-10, 20);
-		planetHM.scale(mScale, 0.0f);
 		
 		planetHM.erode(1, 0.5f);
+		*/
+		planetHM.scale(mScale, 0.0f);
+
 		
+		
+		//Convert heightmesh into a tetmesh.
+		planet = new Geometry();
+		TetMesh planetMesh = new TetMesh();
+		
+		planetMesh = planetHM.getTetmesh();
 		
 		System.out.println("converting to tetmesh");
 		
-		
-		
-		Geometry planet = new Geometry();
-		TetMesh planetMesh = planetHM.getTetmesh();
 		
 		ArrayList<Material> mats1 = new ArrayList<Material>(1);
 		ArrayList<Material> mats2 = new ArrayList<Material>(2);
@@ -120,11 +129,12 @@ public class ProceduralPlanetSceneController extends SceneController {
 		mats2.add(water);
 		//waterMesh.setMats(mats2);
 		
-		planetMesh.setMats(mats1);
+		
 		
 		/*
+		planet = new Geometry();
 		
-		planetMesh = new TetMesh();
+		TetMesh planetMesh = new TetMesh();
 		ArrayList<Vector3f> vt = new ArrayList<Vector3f>(4);
 		ArrayList<Integer> pt = new ArrayList<Integer>(4);
 		vt.add(new Vector3f(-1, -1, -1));
@@ -137,10 +147,14 @@ public class ProceduralPlanetSceneController extends SceneController {
 		pt.add(3);
 		planetMesh.setVerts(vt);
 		planetMesh.setTets(pt);
+		
+		
 		*/
-		
-		
 		planet.addMesh(planetMesh);
+		
+
+		planetMesh.setMats(mats1);
+		
 		//planet.addMesh(waterMesh);
 		
 		
@@ -315,6 +329,17 @@ public class ProceduralPlanetSceneController extends SceneController {
 	public void mousePressed(MouseEvent mouse)	{
 		/* Remember the starting point of a drag. */
 		mLastMousePos = mouse.getPoint();
+	}
+	
+	@Override
+	public void mouseClicked(MouseEvent arg0)
+	{
+		Vector3f dir = new Vector3f(0f, 0f, -1f);
+		Util.rotateTuple(mCamera.getOrientation(), dir);
+		TetMesh mesh = (TetMesh)(planet.getMeshes().get(0));
+		dir.add(mCamera.getPosition(), dir);
+		mesh.deleteFirstTetAlongLine(new Vector3f(mCamera.getPosition()), dir);
+		requiresRender();
 	}
 	
 	
