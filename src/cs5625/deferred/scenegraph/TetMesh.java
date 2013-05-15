@@ -325,16 +325,18 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			Vector3f norm = new Vector3f();
 			norm.cross(edge1, edge2);
 			norm.normalize();
-			float l = -1.0f;//(edge1.length() + edge2.length());
+			float l = -(edge1.length() + edge2.length()) / 2;
 			norm.scale(l);
 			midpt.add(norm);
 			
-			System.out.println("v0: " + f.v0.pos + ", v1: " + f.v1.pos + ", v2: " + f.v2.pos + ", new: " + midpt);
+			//System.out.println("v0: " + f.v0.pos + ", v1: " + f.v1.pos + ", v2: " + f.v2.pos + ", new: " + midpt);
 			
 			Vert created = new Vert(midpt);
 			verts.add(created);
-			Tet tet = new Tet(f.v0, f.v1, f.v2, created, 0);
 			
+			
+			Tet tet = new Tet(f.v1, f.v0, f.v2, created, 0);
+			System.out.println(tet);
 			tets.add(tet);
 			
 			createSurface();
@@ -1107,6 +1109,14 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		System.out.println("Faces: " + faces.size()); //TODO remove
 		System.out.println("Shown faces: " + boundaries.size()); //TODO remove
 		
+		float[] vtx = new float[verts.size() * 3];
+		
+		for (int i = 0; i < verts.size(); i++) {
+			vtx[3 * i] = verts.get(i).pos.x;
+			vtx[3 * i + 1] = verts.get(i).pos.y;
+			vtx[3 * i + 2] = verts.get(i).pos.z;
+		}
+		
 		//Copy these into an actual array now we know the number of faces required.
 		int[] arr = new int[boundaries.size() * 3];
 		
@@ -1172,6 +1182,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		
 		
 		//And store in the mesh's polygon and normal data buffer.
+		mVertexData = FloatBuffer.wrap(vtx);
 		mPolygonData = IntBuffer.wrap(arr);
 		mNormalData = FloatBuffer.wrap(normArr);
 		mTexCoordData = FloatBuffer.wrap(texArr);
@@ -1267,6 +1278,10 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		 */
 		public boolean equals(Vert v) {
 			return pos.equals(v.pos);
+		}
+		
+		public String toString() {
+			return pos.toString();
 		}
 		
 		public void addFace(Face f) {
@@ -1441,6 +1456,10 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			f1.setTet(this);
 			f2.setTet(this);
 			f3.setTet(this);
+		}
+		
+		public String toString() {
+			return "A tet: v0 = " + v0 + ", v1 = " + v1 + ", v2 = " + v2 + ", v3 = " + v3;
 		}
 		
 		public boolean equals (Tet t) {
