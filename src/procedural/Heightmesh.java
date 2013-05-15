@@ -465,34 +465,34 @@ public class Heightmesh extends Geometry {
 		
 	}
 	
+	/** Returns a TetMesh containing a planet built from this Heightmesh. */
 	public TetMesh getTetmesh() {
-		//Convert heightmesh into a tetmesh.
-			TetMesh planetMesh = new TetMesh();
-			
-			ArrayList<Vertex> vertsHM = getVerts();
-			int numVerts = vertsHM.size() + 1;
-			ArrayList<Triangle> trisHM = getTriangles();
-			
-			ArrayList<Vector3f> verts = new ArrayList<Vector3f>(numVerts);
-			ArrayList<Integer> tets = new ArrayList<Integer>(trisHM.size()*4);
-			for (Vertex v : vertsHM) {
-				verts.add(v.pt.v);
-			}
-			// add center of the planet as a point
-			verts.add(new Vector3f(0f,0f,0f));
-			
-			planetMesh.setVerts(verts);
-			
-			
-			for (int i = 0; i < trisHM.size(); i+= 1) {
-				Triangle t = trisHM.get(i);
-				tets.add(t.v0);
-				tets.add(t.v1);
-				tets.add(t.v2);
-				tets.add(numVerts-1);
-			}
-			
-			planetMesh.setTets(tets);
-			return planetMesh;
+		TetMesh planetMesh = new TetMesh();
+		
+		ArrayList<Vertex> vertsHM = getVerts();
+		int numVerts = vertsHM.size() + 1;
+		ArrayList<Triangle> trisHM = getTriangles();
+		
+		ArrayList<Vector3f> verts = new ArrayList<Vector3f>(numVerts);
+		ArrayList<Integer> tets = new ArrayList<Integer>(trisHM.size()*4);
+		for (Vertex v : vertsHM) {
+			verts.add(v.pt.v);
+		}
+		// add center of the planet as a point
+		verts.add(new Vector3f(0f,0f,0f));
+		
+		planetMesh.setVerts(verts);
+		
+		
+		for (int i = 0; i < trisHM.size(); i+= 1) {
+			Triangle t = trisHM.get(i);
+			tets.add(t.v0);
+			tets.add(t.v1);
+			tets.add(t.v2);
+			tets.add(numVerts-1);
+		}
+		
+		planetMesh.setTets(tets);
+		return planetMesh;
 	}
 }
