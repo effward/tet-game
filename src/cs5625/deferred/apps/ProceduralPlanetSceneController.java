@@ -40,7 +40,10 @@ public class ProceduralPlanetSceneController extends SceneController {
 	
 	//Default planet values
 	private float mMinRadius = 0.5f, mMaxRadius = 1.5f, mScale = 20.0f;
-	private int mSubdivs = 6;
+
+	private int mSubdivs = 5;
+	private boolean accelerate = false;
+
 	
 	private Geometry planet;
 	
@@ -98,8 +101,9 @@ public class ProceduralPlanetSceneController extends SceneController {
 		
 		planetHM.erode(1, 0.5f);
 		
+		
 		planetHM.scale(mScale, 0.0f);
-
+		
 		
 		
 		//Convert heightmesh into a tetmesh.
@@ -148,9 +152,9 @@ public class ProceduralPlanetSceneController extends SceneController {
 		pt.add(3);
 		planetMesh.setVerts(vt);
 		planetMesh.setTets(pt);
-		
-		
 		*/
+		
+		
 		planet.addMesh(planetMesh);
 		
 
@@ -280,12 +284,15 @@ public class ProceduralPlanetSceneController extends SceneController {
 			mRenderer.setRenderWireframes(!mRenderer.getRenderWireframes());
 			requiresRender();
 		}	
+		else if (c == 'a') {
+			accelerate = !accelerate;
+		}
 		else if (c == 'c') {
 			Vector3f dir = new Vector3f(0f, 0f, -1f);
 			Util.rotateTuple(mCamera.getOrientation(), dir);
 			TetMesh mesh = (TetMesh)(planet.getMeshes().get(0));
 			dir.add(mCamera.getPosition(), dir);
-			mesh.createTetAtFirstFaceAlongLine(new Vector3f(mCamera.getPosition()), dir);
+			mesh.createTetAtFirstFaceAlongLine(new Vector3f(mCamera.getPosition()), dir, accelerate);
 			requiresRender();
 		}
 		else if (c == 'o') {
@@ -347,7 +354,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 		Util.rotateTuple(mCamera.getOrientation(), dir);
 		TetMesh mesh = (TetMesh)(planet.getMeshes().get(0));
 		dir.add(mCamera.getPosition(), dir);
-		mesh.deleteFirstTetAlongLine(new Vector3f(mCamera.getPosition()), dir);
+		mesh.deleteFirstTetAlongLine(new Vector3f(mCamera.getPosition()), dir, accelerate);
 		requiresRender();
 	}
 	
