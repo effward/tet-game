@@ -41,6 +41,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 	//Default planet values
 	private float mMinRadius = 0.5f, mMaxRadius = 1.5f, mScale = 20.0f;
 	private int mSubdivs = 5;
+	private boolean accelerate = false;
 	
 	private Geometry planet;
 	
@@ -74,16 +75,16 @@ public class ProceduralPlanetSceneController extends SceneController {
 
 		
 		System.out.println("subdividing");
-		//planetHM.subdivide(Math.max(mSubdivs - 3, 0), false);
+		planetHM.subdivide(Math.max(mSubdivs - 3, 0), false);
 		
 		System.out.println("saving frequencies");
 
 		planetHM.saveFrequency(5.0f);
 		
 		System.out.println("rerandomizing");
-		//planetHM.randomize(mMinRadius, mMaxRadius);
-		//planetHM.smooth(3);
-		//planetHM.randomizeRelative(0.0f, 2.0f);
+		planetHM.randomize(mMinRadius, mMaxRadius);
+		planetHM.smooth(3);
+		planetHM.randomizeRelative(0.0f, 2.0f);
 		
 		System.out.println("smoothing according to saved smooth values");
 
@@ -281,12 +282,15 @@ public class ProceduralPlanetSceneController extends SceneController {
 			mRenderer.setRenderWireframes(!mRenderer.getRenderWireframes());
 			requiresRender();
 		}	
+		else if (c == 'a') {
+			accelerate = !accelerate;
+		}
 		else if (c == 'c') {
 			Vector3f dir = new Vector3f(0f, 0f, -1f);
 			Util.rotateTuple(mCamera.getOrientation(), dir);
 			TetMesh mesh = (TetMesh)(planet.getMeshes().get(0));
 			dir.add(mCamera.getPosition(), dir);
-			mesh.createTetAtFirstFaceAlongLine(new Vector3f(mCamera.getPosition()), dir);
+			mesh.createTetAtFirstFaceAlongLine(new Vector3f(mCamera.getPosition()), dir, accelerate);
 			requiresRender();
 		}
 		else if (c == 'o') {
@@ -348,7 +352,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 		Util.rotateTuple(mCamera.getOrientation(), dir);
 		TetMesh mesh = (TetMesh)(planet.getMeshes().get(0));
 		dir.add(mCamera.getPosition(), dir);
-		mesh.deleteFirstTetAlongLine(new Vector3f(mCamera.getPosition()), dir);
+		mesh.deleteFirstTetAlongLine(new Vector3f(mCamera.getPosition()), dir, accelerate);
 		requiresRender();
 	}
 	
