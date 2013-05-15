@@ -69,7 +69,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 		Heightmesh planetHM = new Heightmesh();
 		planetHM.createIcosa();
 		
-		planetHM.subdivide(2, true);
+		//planetHM.subdivide(2, true);
 		
 		/*
 		System.out.println("creating variation basis");
