@@ -3,16 +3,17 @@ package procedural;
 import java.util.ArrayList;
 
 import javax.media.opengl.GL2;
+import javax.vecmath.Vector3f;
 
 import cs5625.deferred.scenegraph.Geometry;
+import cs5625.deferred.scenegraph.TetMesh;
 
 
 /** Represents a set of heights, their points, and accompanying mesh. */
 public class Heightmesh extends Geometry {
 	private ArrayList<Vertex> verts;
 	private ArrayList<Triangle> triangles;
-	private int[] frequencyMask;
-	private int maxSmooth = 0;
+	private float[] frequencyMask;
 	
 	/** Create a new Heightmesh. */
 	public Heightmesh() {
@@ -324,25 +325,25 @@ public class Heightmesh extends Geometry {
 	}
 	
 	/** Save some iteration count info... */
-	public void saveFrequency(int min, int max) {
+	public void saveFrequency(float log) {
 		float oldmin = Float.POSITIVE_INFINITY;
 		float oldmax = Float.NEGATIVE_INFINITY;
-		maxSmooth = 0;
 		
 		for (Vertex v : verts) {
 			if (v.mag < oldmin) oldmin = v.mag;
 			if (v.mag > oldmax) oldmax = v.mag;
 		}
 		//float diff = (float)(max - min) / (oldmax - oldmin);
-		frequencyMask = new int[verts.size()];
+		frequencyMask = new float[verts.size()];
 		
 		for (int i = 0; i < verts.size(); i++) {
 			//frequencyMask[i] = (int)((verts.get(i).mag - oldmin) * diff) + min;
-			frequencyMask[i] = (int)(logistic(verts.get(i).mag, oldmin, oldmax, 5.0f) * (float)(max - min)) + min;
-			if (frequencyMask[i] > maxSmooth) maxSmooth = frequencyMask[i];
+			frequencyMask[i] = logistic(verts.get(i).mag, oldmin, oldmax, log);
+			//if (frequencyMask[i] > maxSmooth) maxSmooth = frequencyMask[i];
 		}
 	}
 	
+	/** A logistic curve between the given min and max values... */
 	private float logistic(float in, float min, float max, float form) {
 		float lform = (float)(1.0f / (1.0f + Math.pow(Math.E, -form)));
 		
@@ -385,9 +386,48 @@ public class Heightmesh extends Geometry {
 		
 	}
 	
+	/** Smooth according to a saved frequency mask. */
+	public void smoothFrequencies(int itIntercept, int itSlope) {
+		if (verts.size() != frequencyMask.length) return;
+		
+		float[] shadow = new float[verts.size()];
+		
+		float tot;
+		for (int it = 0; it < itSlope + itIntercept; it++) {
+			for (int j = 0; j < verts.size(); j++) {
+				if (Math.max((int)(frequencyMask[j] * (float)itSlope + (float)itIntercept), 0) >= it) {
+					Vertex v = verts.get(j);
+					
+					tot = v.mag;
+					for (Vertex n: v.neighbors) {
+						tot += n.mag;
+					}
+					shadow[j] = tot / (v.neighbors.size() + 1);
+				}
+			}
+			for (int j = 0; j < verts.size(); j++) {
+				if (Math.max((int)(frequencyMask[j] * (float)itSlope + (float)itIntercept), 0) >= it) {
+					Vertex v = verts.get(j);
+				
+					v.mag = shadow[j];
+					v.pt.set(v.dir);
+					v.pt.timesEquals(v.mag);
+					Vertex lower = v.lower;
+					while(lower != null) {
+						lower.mag = shadow[j];
+						lower.pt.set(lower.dir);
+						lower.pt.timesEquals(lower.mag);
+						lower = lower.lower;
+					}
+				}
+			}
+		}
+	
+	}
+	
 	/**
 	 * Smooth this Globe's terrain.
-	 * @param its - number of iterations to smooth (if -1, uses saved frequency).
+	 * @param its - number of iterations to smooth.
 	 */
 	public void smooth(int its) {
 		float[] shadow = new float[verts.size()];
@@ -395,66 +435,64 @@ public class Heightmesh extends Geometry {
 		float tot;
 		
 		
-		if (its == -1 && verts.size() == frequencyMask.length) {
-			for (int it = 0; it < maxSmooth; it++) {
-				for (int j = 0; j < verts.size(); j++) {
-					if (frequencyMask[j] >= it) {
-						Vertex v = verts.get(j);
-						
-						tot = v.mag;
-						for (Vertex n: v.neighbors) {
-							tot += n.mag;
-						}
-						shadow[j] = tot / (v.neighbors.size() + 1);
-					}
+		if (its < 0) its = 1;
+		int i = 0;
+		for (int it = 0; it < its; it++) {
+			for (Vertex v: verts) {
+				tot = v.mag;
+				for (Vertex n: v.neighbors) {
+					tot += n.mag;
 				}
-				for (int j = 0; j < verts.size(); j++) {
-					if (frequencyMask[j] >= it) {
-						Vertex v = verts.get(j);
-					
-						v.mag = shadow[j];
-						v.pt.set(v.dir);
-						v.pt.timesEquals(v.mag);
-						Vertex lower = v.lower;
-						while(lower != null) {
-							lower.mag = shadow[j];
-							lower.pt.set(lower.dir);
-							lower.pt.timesEquals(lower.mag);
-							lower = lower.lower;
-						}
-					}
+				shadow[i] = tot / (v.neighbors.size() + 1);
+				i++;
+			}
+			i = 0;
+			for (Vertex v: verts) {
+				v.mag = shadow[i];
+				v.pt.set(v.dir);
+				v.pt.timesEquals(v.mag);
+				Vertex lower = v.lower;
+				while(lower != null) {
+					lower.mag = shadow[i];
+					lower.pt.set(lower.dir);
+					lower.pt.timesEquals(lower.mag);
+					lower = lower.lower;
 				}
+				i++;
+			}
+			i = 0;
+		}
+		
+	}
+	
+	public TetMesh getTetmesh() {
+		//Convert heightmesh into a tetmesh.
+			TetMesh planetMesh = new TetMesh();
+			
+			ArrayList<Vertex> vertsHM = getVerts();
+			int numVerts = vertsHM.size() + 1;
+			ArrayList<Triangle> trisHM = getTriangles();
+			
+			ArrayList<Vector3f> verts = new ArrayList<Vector3f>(numVerts);
+			ArrayList<Integer> tets = new ArrayList<Integer>(trisHM.size()*4);
+			for (Vertex v : vertsHM) {
+				verts.add(v.pt.v);
+			}
+			// add center of the planet as a point
+			verts.add(new Vector3f(0f,0f,0f));
+			
+			planetMesh.setVerts(verts);
+			
+			
+			for (int i = 0; i < trisHM.size(); i+= 1) {
+				Triangle t = trisHM.get(i);
+				tets.add(t.v0);
+				tets.add(t.v1);
+				tets.add(t.v2);
+				tets.add(numVerts-1);
 			}
 			
-		}
-		else {
-			if (its < 0) its = 1;
-			int i = 0;
-			for (int it = 0; it < its; it++) {
-				for (Vertex v: verts) {
-					tot = v.mag;
-					for (Vertex n: v.neighbors) {
-						tot += n.mag;
-					}
-					shadow[i] = tot / (v.neighbors.size() + 1);
-					i++;
-				}
-				i = 0;
-				for (Vertex v: verts) {
-					v.mag = shadow[i];
-					v.pt.set(v.dir);
-					v.pt.timesEquals(v.mag);
-					Vertex lower = v.lower;
-					while(lower != null) {
-						lower.mag = shadow[i];
-						lower.pt.set(lower.dir);
-						lower.pt.timesEquals(lower.mag);
-						lower = lower.lower;
-					}
-					i++;
-				}
-				i = 0;
-			}
-		}
+			planetMesh.setTets(tets);
+			return planetMesh;
 	}
 }

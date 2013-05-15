@@ -16,6 +16,7 @@
 const int UNSHADED_MATERIAL_ID = 1;
 const int LAMBERTIAN_MATERIAL_ID = 2;
 const int BLINNPHONG_MATERIAL_ID = 3;
+const int COOKTORRANCE_MATERIAL_ID = 4;
 
 /* Some constant maximum number of lights which GLSL and Java have to agree on. */
 #define MAX_LIGHTS 40
@@ -266,15 +267,77 @@ vec3 shadeBlinnPhong(vec3 diffuse, vec3 specular, float exponent, vec3 position,
 	return lightColor * attenuation * (diffuse * ndotl + specular * pow_ndoth);
 }
 
+/**
+ * Performs Cook-Torrance shading on the passed fragment data (color, normal, etc.) for a single light.
+ * 
+ * @param diffuse The diffuse color of the material at this fragment.
+ * @param specular The specular color of the material at this fragment.
+ * @param m The microfacet rms slope at this fragment.
+ * @param n The index of refraction at this fragment.
+ * @param position The eyespace position of the surface at this fragment.
+ * @param normal The eyespace normal of the surface at this fragment.
+ * @param lightPosition The eyespace position of the light to compute lighting from.
+ * @param lightColor The color of the light to apply.
+ * @param lightAttenuation A vector of (constant, linear, quadratic) attenuation coefficients for this light.
+ * 
+ * @return The shaded fragment color.
+ */
+vec3 shadeCookTorrance(vec3 diffuse, vec3 specular, float m, float n, vec3 position, vec3 normal,
+	vec3 lightPosition, vec3 lightColor, vec3 lightAttenuation)
+{
+	vec3 viewDirection = -normalize(position);
+	vec3 lightDirection = normalize(lightPosition - position);
+	vec3 halfDirection = normalize(lightDirection + viewDirection);
+	
+	float nDotH = dot(normal, halfDirection);
+	float nDotV = dot(normal, viewDirection);
+	float nDotL = dot(normal, lightDirection);
+	float vDotH = dot(viewDirection, halfDirection);
+	
+	//Schlick approx
+	float rf = pow((n - 1.0)/(n + 1.0), 2.0);
+	float F = rf + (1.0 - rf) * pow((1.0 - nDotL), 5.0); 
+	
+	//Masking and shadowing
+	float G = max(0.0, min(
+		min(
+			1.0, 
+			2.0 * nDotH * nDotV / vDotH
+		),
+		2.0 * nDotH * nDotL / vDotH
+	));
+	
+	//Beckmann distrib
+	//Using (tan(alpha) / m)^2 = (1 - cos(alpha)^2) / (cos(alpha)^2 * m^2)
+	//and n dot h = cos(alpha)
+	float D = exp(-(1.0 - nDotH * nDotH) / (nDotH * nDotH * m * m));
+	D = D / (4.0 * m * m * pow(nDotH, 4.0));
+	
+	//Cook-Torrance specular coefficient
+	//Using the nDotH > 0 cutoff that BlinnPhong above does (looks like a hack but w/e)
+	//to prevent some very obnoxious artifacts
+	float ct = (nDotH > 0.0 ?  F * D * G / (3.1415926536 * nDotL * nDotV) : 0.0);
+	//float ct = (F * D * G) / (3.1415926536 * nDotV);
+	
+	//Lighting
+	float r = length(lightPosition - position);
+	float attenuation = 1.0 / dot(lightAttenuation, vec3(1.0, r, r * r));
+	
+	return lightColor * attenuation * (diffuse * max(0.0, nDotL) + specular * ct);
+
+	
+}
+
 void main()
 {
 	/* Sample gbuffer. */
-	vec3 diffuse         = texture2DRect(DiffuseBuffer, gl_FragCoord.xy).xyz;
-	vec3 position        = texture2DRect(PositionBuffer, gl_FragCoord.xy).xyz;
+	vec4 diffuse         = texture2DRect(DiffuseBuffer, gl_FragCoord.xy).xyza;
+	vec4 position        = texture2DRect(PositionBuffer, gl_FragCoord.xy).xyza;
 	vec4 materialParams1 = texture2DRect(MaterialParams1Buffer, gl_FragCoord.xy);
 	vec4 materialParams2 = texture2DRect(MaterialParams2Buffer, gl_FragCoord.xy);
-	vec3 normal          = decode(vec2(texture2DRect(DiffuseBuffer, gl_FragCoord.xy).a,
-	                                   texture2DRect(PositionBuffer, gl_FragCoord.xy).a));
+	//vec3 normal          = decode(vec2(texture2DRect(DiffuseBuffer, gl_FragCoord.xy).a,
+	//                                   texture2DRect(PositionBuffer, gl_FragCoord.xy).a));
+	vec3 normal 		 = materialParams2.yza; //encode/decode doesn't work quite right
 	
 	/* Initialize fragment to black. */
 	gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
@@ -290,14 +353,14 @@ void main()
 	else if (materialID == UNSHADED_MATERIAL_ID)
 	{
 		/* Unshaded material is just a constant color. */
-		gl_FragColor.rgb = diffuse;
+		gl_FragColor.rgb = diffuse.xyz;
 	}
 	else if (materialID == LAMBERTIAN_MATERIAL_ID)
 	{
 		/* Accumulate Lambertian shading for each light. */
 		for (int i = 0; i < NumLights; ++i)
 		{
-			gl_FragColor.rgb += shadeLambertian(diffuse, position, normal, LightPositions[i], LightColors[i], LightAttenuations[i]);
+			gl_FragColor.rgb += shadeLambertian(diffuse.xyz, position.xyz, normal, LightPositions[i], LightColors[i], LightAttenuations[i]);
 		}
 	}
 	else if (materialID == BLINNPHONG_MATERIAL_ID)
@@ -306,15 +369,32 @@ void main()
 		for (int i = 0; i < NumLights; ++i)
 		{
 			gl_FragColor.rgb += shadeBlinnPhong(
-				diffuse,
+				diffuse.xyz,
 				materialParams1.yza,
 				materialParams2.x,
-				position, 
+				position.xyz, 
 				normal, 
 				LightPositions[i], 
 				LightColors[i], 
 				LightAttenuations[i]
 			);
+		}
+	}
+	else if (materialID == COOKTORRANCE_MATERIAL_ID) 
+	{
+		for(int l = 0; l < NumLights; l++)
+		{
+			gl_FragColor.rgb += shadeCookTorrance(
+				diffuse.xyz, 
+				materialParams1.yza, 
+				diffuse.a, 
+				position.a, 
+				position.xyz, 
+				normal,
+				LightPositions[l], 
+				LightColors[l], 
+				LightAttenuations[l]
+			);		
 		}
 	}
 	else
