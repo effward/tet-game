@@ -804,7 +804,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			toVisit.add(root);
 			while(toVisit.size() > 0) {
 				TreeNode current = toVisit.remove(0);
-				if (intersectLineWithBoundingBox(start, end, new Vector3f(current.lowerLeft), new Vector3f(current.upperRight))) {
+				if (intersectLineWithBB(start, end, new Vector3f(current.lowerLeft), new Vector3f(current.upperRight), false)) {
 					if (current.left != null)
 						toVisit.add(current.left);
 					if (current.right != null)
@@ -827,7 +827,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 				PointIntersection interPos = intersectFace(f.v0.pos, f.v1.pos, f.v2.pos, l, start, end, false);
 				if (interPos.type != IntersectionType.NONE) {
 					hit.add(new FacePointIntersectionPair(interPos, f));
-					if (intersectLineWithBoundingBox(start, end, new Vector3f(f.lowerLeft), new Vector3f(f.upperRight))) {
+					if (intersectLineWithBB(start, end, new Vector3f(f.lowerLeft), new Vector3f(f.upperRight), false)) {
 						System.out.println("Intersections agree");
 					}
 					else {
@@ -940,10 +940,11 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		return hit;
 	}
 	
-	/** Returns true if the line segment between start and end intersects
+	/** Returns true if the line (just segment if segment is true)
+	 * between start and end intersects
 	 * the box between corners min and max.
 	 */
-	public boolean intersectLineSegmentWithBoundingBox(Vector3f start, Vector3f end, Vector3f min, Vector3f max) {
+	public boolean intersectLineWithBB(Vector3f start, Vector3f end, Vector3f min, Vector3f max, boolean segment) {
 		
 		//Convert into a ray...
 		Vector3f dir = new Vector3f(end);
@@ -958,7 +959,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		if (dir.x != 0.0f) {
 			//min x
 			t = (min.x - start.x) / dir.x;
-			if (t <= maxLen && t >= 0.0f) {
+			if (!segment || (t <= maxLen && t >= 0.0f)) {
 				y = dir.y * t + start.y;
 				z = dir.z * t + start.z;
 				if (y >= min.y && y <= max.y && z >= min.z && z <= max.z) return true;
@@ -966,17 +967,20 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			
 			//max x
 			t = (max.x - start.x) / dir.x;
-			if (t <= maxLen && t >= 0.0f) {
+			if (!segment || (t <= maxLen && t >= 0.0f)) {
 				y = dir.y * t + start.y;
 				z = dir.z * t + start.z;
 				if (y >= min.y && y <= max.y && z >= min.z && z <= max.z) return true;
 			}
 		}
+		else {
+			System.out.println("zero x");
+		}
 		
 		if (dir.y != 0.0f) {
 			//min y
 			t = (min.y - start.y) / dir.y;
-			if (t <= maxLen && t >= 0.0f) {
+			if (!segment || (t <= maxLen && t >= 0.0f)) {
 				x = dir.x * t + start.x;
 				z = dir.z * t + start.z;
 				if (x >= min.x && x <= max.x && z >= min.z && z <= max.z) return true;
@@ -984,17 +988,20 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			
 			//max y
 			t = (max.y - start.y) / dir.y;
-			if (t <= maxLen && t >= 0.0f) {
+			if (!segment || (t <= maxLen && t >= 0.0f)) {
 				x = dir.x * t + start.x;
 				z = dir.z * t + start.z;
 				if (x >= min.x && x <= max.x && z >= min.z && z <= max.z) return true;
 			}
 		}
+		else {
+			System.out.println("zero y");
+		}
 		
 		if (dir.z != 0.0f) {
 			//min z
 			t = (min.z - start.z) / dir.z;
-			if (t <= maxLen && t >= 0) {
+			if (!segment || (t <= maxLen && t >= 0.0f)) {
 				y = dir.y * t + start.y;
 				x = dir.x * t + start.x;
 				if (y >= min.y && y <= max.y && x >= min.x && x <= max.x) return true;
@@ -1002,83 +1009,19 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			
 			//max z
 			t = (max.z - start.z) / dir.z;
-			if (t <= maxLen && t >= 0) {
+			if (!segment || (t <= maxLen && t >= 0.0f)) {
 				y = dir.y * t + start.y;
 				x = dir.x * t + start.x;
 				if (y >= min.y && y <= max.y && x >= min.x && x <= max.x) return true;
 			}
+		}
+		else {
+			System.out.println("zero z");
 		}
 		
 		return false;
 	}
 	
-	/** Returns true if the line segment between start and end intersects
-	 * the box between corners min and max.
-	 */
-	public boolean intersectLineWithBoundingBox(Vector3f start, Vector3f end, Vector3f min, Vector3f max) {
-		
-		//Convert into a ray...
-		Vector3f dir = new Vector3f(end);
-		dir.sub(start);
-		dir.normalize();
-		System.out.println("Start : " + start);
-		System.out.println("Dir : " + dir);
-		System.out.println("Min: " + min + ", Max: " + max);
-		
-		//check six faces...
-		float t, x, y, z;
-		
-		
-		if (dir.x != 0.0f) {
-			//min x
-			t = (min.x - start.x) / dir.x;
-			y = dir.y * t + start.y;
-			z = dir.z * t + start.z;
-			System.out.println("y: " + y + ", z: " + z);
-			if (y >= min.y && y <= max.y && z >= min.z && z <= max.z) return true;
-			
-			//max x
-			t = (max.x - start.x) / dir.x;
-			y = dir.y * t + start.y;
-			z = dir.z * t + start.z;
-			System.out.println("y: " + y + ", z: " + z);
-			if (y >= min.y && y <= max.y && z >= min.z && z <= max.z) return true;
-		}
-		
-		if (dir.y != 0.0f) {
-			//min y
-			t = (min.y - start.y) / dir.y;
-			x = dir.x * t + start.x;
-			z = dir.z * t + start.z;
-			System.out.println("x: " + x + ", z: " + z);
-			if (x >= min.x && x <= max.x && z >= min.z && z <= max.z) return true;
-			
-			//max y
-			t = (max.y - start.y) / dir.y;
-			x = dir.x * t + start.x;
-			z = dir.z * t + start.z;
-			System.out.println("x: " + x + ", z: " + z);
-			if (x >= min.x && x <= max.x && z >= min.z && z <= max.z) return true;
-		}
-		
-		if (dir.z != 0.0f) {
-			//min z
-			t = (min.z - start.z) / dir.z;
-			y = dir.y * t + start.y;
-			x = dir.x * t + start.x;
-			System.out.println("y: " + y + ", x: " + x);
-			if (y >= min.y && y <= max.y && x >= min.x && x <= max.x) return true;
-			
-			//max z
-			t = (max.z - start.z) / dir.z;
-			y = dir.y * t + start.y;
-			x = dir.x * t + start.x;
-			System.out.println("y: " + y + ", x: " + x);
-			if (y >= min.y && y <= max.y && x >= min.x && x <= max.x) return true;
-		}
-		
-		return false;
-	}
 	
 	/**********************************************************
 	 * End Intersection Calculation Stuff
