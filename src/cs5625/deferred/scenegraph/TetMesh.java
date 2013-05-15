@@ -235,12 +235,48 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		return node;
 	}
 	
-	public void deleteTet(Vector3f start, Vector3f end) {
-		System.out.println("Faces: " + faces.size());
-		System.out.println("Tets: " + tets.size());
-		System.out.println("Vertices: " + verts.size());
-		System.out.println("Coord: " + faces.get(0).v0.pos + ", " + faces.get(0).v1.pos + ", " + faces.get(0).v2.pos);
+	/** When deleting a tet, used to delete faces. */
+	public void removeFaceIfNecessary(Face f, Tet t, int i) {
+		if (f.t1 == null) { //was a boundary
+			faces.remove(f); //cull from TetMesh's faces list.
+		}
+		else { // had a second tet - have to rearrange 
+			if (f.t0 == t) {
+				//shift face's second tet to first slot.
+				f.t0 = f.t1;
+				f.t1 = null;
+				//Swap vertex order so that the face is now pointing outwards.
+				Vert temp = f.v2; 
+				f.v2 = f.v1;
+				f.v1 = temp;
+			}
+			else if (f.t1 == t) {
+				f.t1 = null;
+			}
+			else {
+				System.out.println("neither of f" + i + "'s tets was toRemove!");
+			}
+		}
+
+	}
+	
+	/** Remove the given tetrahedron. */
+	public void deleteTet(Tet toRemove) {
+		//remove tet from tets list
+		this.tets.remove(toRemove);
 		
+		//cull faces if necessary
+		removeFaceIfNecessary(toRemove.f0, toRemove, 0);
+		removeFaceIfNecessary(toRemove.f1, toRemove, 1);
+		removeFaceIfNecessary(toRemove.f2, toRemove, 2);
+		removeFaceIfNecessary(toRemove.f3, toRemove, 3);
+	
+		System.out.println("Deleted tet!");
+		createSurface(); //would be nice to not have to do this every time.
+	}
+	
+	/** Return the first Tet encountered along the line between start and end. */
+	public Tet findFirstTetAlongLine(Vector3f start, Vector3f end) {
 		ArrayList<FacePointIntersectionPair> intersections = intersectLine(start, end);
 		Point3f pos = new Point3f(start);
 		Face f = null;
@@ -254,140 +290,19 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 				}
 			}
 		}
-		if (f == null)
-			return;
-		if (f.t0 != null) {
-			this.tets.remove(f.t0);
-			if (!f.t0.f0.equals(f)) {
-				if (f.t0.f0.t1 == null){
-					System.out.println("Removing face");
-					this.faces.remove(f.t0.f0);
-					this.interfaces.remove(f.t0.f0);
-				}
-				else {
-					if (f.t0.f0.t0.equals(f.t0)) {
-						f.t0.f0.t0 = f.t0.f0.t1;
-					}
-					else {
-						f.t0.f0.t1 = null;
-					}
-				}
-			}
-			if (f== null)
-				System.out.println("F");
-			if (f.t0== null)
-				System.out.println("T0");
-			if (f.t0.f1 == null)
-				System.out.println("f1");
-			if (f.t0.f1.t1 == null)
-				System.out.println("t1");
-			if (!f.t0.f1.equals(f)) {
-				if (f.t0.f1.t1 == null) {
-					this.faces.remove(f.t0.f1);
-					this.interfaces.remove(f.t0.f1);
-				}
-				else {
-					if (f.t0.f1.t0.equals(f.t0)) {
-						f.t0.f1.t0 = f.t0.f1.t1;
-					}
-					else {
-						f.t0.f1.t1 = null;
-					}
-				}
-			}
-			if (!f.t0.f2.equals(f)) {
-				if (f.t0.f2.t1 == null) {
-					this.faces.remove(f.t0.f2);
-					this.interfaces.remove(f.t0.f2);
-				}
-				else {
-					if (f.t0.f2.t0.equals(f.t0)) {
-						f.t0.f2.t0 = f.t0.f2.t1;
-					}
-					else {
-						f.t0.f2.t1 = null;
-					}
-				}
-			}
-			if (!f.t0.f3.equals(f)) {
-				if (f.t0.f3.t1 == null) {
-					this.faces.remove(f.t0.f3);
-					this.interfaces.remove(f.t0.f3);
-				}
-				else {
-					if (f.t0.f3.t0.equals(f.t0)) {
-						f.t0.f3.t0 = f.t0.f3.t1;
-					}
-					else {
-						f.t0.f3.t1 = null;
-					}
-				}
-			}
+		if (f == null) {
+			return null; //and no tets were found that day
 		}
 		if (f.t1 != null) {
-			this.tets.remove(f.t1);
-			if (!f.t1.f0.equals(f)) {
-				if (f.t1.f0.t1 == null) {
-					this.faces.remove(f.t1.f0);
-					this.interfaces.remove(f.t1.f0);
-				}
-				else {
-					if (f.t1.f0.t0.equals(f.t1)) {
-						f.t1.f0.t0 = f.t1.f0.t1;
-					}
-					else {
-						f.t1.f0.t1 = null;
-					}
-				}
-			}
-			if (!f.t1.f1.equals(f)) {
-				if (f.t1.f1.t1 == null) {
-					this.faces.remove(f.t1.f1);
-					this.interfaces.remove(f.t1.f1);
-				}
-				else {
-					if (f.t1.f1.t0.equals(f.t1)) {
-						f.t1.f1.t0 = f.t1.f1.t1;
-					}
-					else {
-						f.t1.f1.t1 = null;
-					}
-				}
-			}
-			if (!f.t1.f2.equals(f)) {
-				if (f.t1.f2.t1 == null) {
-					this.faces.remove(f.t1.f2);
-					this.interfaces.remove(f.t1.f2);
-				}
-				else {
-					if (f.t1.f2.t0.equals(f.t1)) {
-						f.t1.f2.t0 = f.t1.f2.t1;
-					}
-					else {
-						f.t1.f2.t1 = null;
-					}
-				}
-			}
-			if (!f.t1.f3.equals(f)) {
-				if (f.t1.f3.t1 == null) {
-					this.faces.remove(f.t1.f3);
-					this.interfaces.remove(f.t1.f3);
-				}
-				else {
-					if (f.t1.f3.t0.equals(f.t1)) {
-						f.t1.f3.t0 = f.t1.f3.t1;
-					}
-					else {
-						f.t1.f3.t1 = null;
-					}
-				}
-			}
+			System.out.println("Face clicked on had a second tet!");
 		}
-		this.faces.remove(f);
-		this.interfaces.remove(f);
-		System.out.println("Deleted tet!");
-		createSurface();
-		
+		return f.t0;
+	}
+	
+	/** Delete first tet encountered along the line between start and end. */
+	public void deleteFirstTetAlongLine(Vector3f start, Vector3f end) {
+		Tet remove = findFirstTetAlongLine(start, end);
+		if (remove != null) deleteTet(remove);
 	}
 	
 	/**********************************************************

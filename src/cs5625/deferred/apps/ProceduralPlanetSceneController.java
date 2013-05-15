@@ -16,8 +16,10 @@ import javax.vecmath.Quat4f;
 import javax.vecmath.Vector3f;
 
 import cs5625.deferred.materials.BlinnPhongMaterial;
+import cs5625.deferred.materials.CookTorranceMaterial;
 import cs5625.deferred.materials.Material;
 import cs5625.deferred.materials.Texture2D;
+import cs5625.deferred.materials.UnshadedMaterial;
 import cs5625.deferred.misc.ScenegraphException;
 import cs5625.deferred.misc.Util;
 import cs5625.deferred.scenegraph.Geometry;
@@ -38,7 +40,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 	
 	//Default planet values
 	private float mMinRadius = 0.5f, mMaxRadius = 1.5f, mScale = 20.0f;
-	private int mSubdivs = 6;
+	private int mSubdivs = 5;
 	
 	private Geometry planet;
 	
@@ -49,12 +51,22 @@ public class ProceduralPlanetSceneController extends SceneController {
 	
 	@Override
 	public void initializeScene() {
-
+		
+		/*
+		Heightmesh waterHM = new Heightmesh();
+		waterHM.createIcosa();
+		waterHM.subdivide(4, true);
+		waterHM.scale(mScale, 0);
+		TetMesh waterMesh = waterHM.getTetmesh();
+		*/
+		
+		
 		
 		//Generate planetary heightmesh...
 		Heightmesh planetHM = new Heightmesh();
 		planetHM.createIcosa();
 		
+		/*
 		System.out.println("creating variation basis");
 		planetHM.subdivide(Math.min(3, mSubdivs), true);
 		planetHM.randomize(mMinRadius, mMaxRadius);
@@ -65,7 +77,8 @@ public class ProceduralPlanetSceneController extends SceneController {
 		//planetHM.subdivide(Math.max(mSubdivs - 3, 0), false);
 		
 		System.out.println("saving frequencies");
-		//planetHM.saveFrequency(0, 20);
+
+		planetHM.saveFrequency(5.0f);
 		
 		System.out.println("rerandomizing");
 		//planetHM.randomize(mMinRadius, mMaxRadius);
@@ -73,61 +86,57 @@ public class ProceduralPlanetSceneController extends SceneController {
 		//planetHM.randomizeRelative(0.0f, 2.0f);
 		
 		System.out.println("smoothing according to saved smooth values");
-		//planetHM.smooth(-1);
+
+		planetHM.smoothFrequencies(-10, 15);
 		
 		System.out.println("Eroding");
-		//planetHM.erode(10, 0.2f);
-
-		planetHM.scale(mScale, 0.0f);
+		planetHM.erode(10, 0.2f);
 		
-		System.out.println("converting to tetmesh");
+		System.out.println("smoothing one last time");
+		planetHM.smoothFrequencies(-10, 20);
+		
+		planetHM.erode(1, 0.5f);
+		*/
+		planetHM.scale(mScale, 0.0f);
+
+		
 		
 		//Convert heightmesh into a tetmesh.
 		planet = new Geometry();
 		TetMesh planetMesh = new TetMesh();
 		
-		ArrayList<Vertex> vertsHM = planetHM.getVerts();
-		int numVerts = vertsHM.size() + 1;
-		ArrayList<Triangle> trisHM = planetHM.getTriangles();
+		planetMesh = planetHM.getTetmesh();
 		
-		ArrayList<Vector3f> verts = new ArrayList<Vector3f>(numVerts);
-		ArrayList<Integer> tets = new ArrayList<Integer>(trisHM.size()*4);
-		for (Vertex v : vertsHM) {
-			verts.add(v.pt.v);
-		}
-		// add center of the planet as a point
-		verts.add(new Vector3f(0f,0f,0f));
-		
-		planetMesh.setVerts(verts);
+		System.out.println("converting to tetmesh");
 		
 		
-		for (int i = 0; i < trisHM.size(); i+= 1) {
-			Triangle t = trisHM.get(i);
-			tets.add(t.v0);
-			tets.add(t.v1);
-			tets.add(t.v2);
-			tets.add(numVerts-1);
-		}
+		ArrayList<Material> mats1 = new ArrayList<Material>(1);
+		ArrayList<Material> mats2 = new ArrayList<Material>(2);
 		
-		planetMesh.setTets(tets);
-		
-		ArrayList<Material> mats = new ArrayList<Material>(1);
-		BlinnPhongMaterial mat = new BlinnPhongMaterial();
+		BlinnPhongMaterial rock = new BlinnPhongMaterial();
+		BlinnPhongMaterial water = new BlinnPhongMaterial();
+		//CookTorranceMaterial water = new CookTorranceMaterial();
 		try {
-			Texture2D rock = Texture2D.load(GLU.getCurrentGL().getGL2(), "textures/Rock.png");
-			mat.setDiffuseTexture(rock);
+			Texture2D rocktex = Texture2D.load(GLU.getCurrentGL().getGL2(), "textures/Rock.png");
+			rock.setDiffuseTexture(rocktex);
+			Texture2D watertex = Texture2D.load(GLU.getCurrentGL().getGL2(), "textures/water.jpg");
+			water.setDiffuseTexture(watertex);
 		}
 		catch(Exception e) {
 			System.out.println(e);
 		}
-		mat.setSpecularColor(new Color3f(0.0f, 0.0f, 0.0f));
-		mats.add(mat);
+		rock.setSpecularColor(new Color3f(0.0f, 0.0f, 0.0f));
+		mats1.add(rock);
+		//water.setSpecularColor(new Color3f(1.0f, 1.0f, 1.0f));
+		mats2.add(water);
+		//waterMesh.setMats(mats2);
 		
-		planetMesh.setMats(mats);
+		
 		
 		/*
+		planet = new Geometry();
 		
-		planetMesh = new TetMesh();
+		TetMesh planetMesh = new TetMesh();
 		ArrayList<Vector3f> vt = new ArrayList<Vector3f>(4);
 		ArrayList<Integer> pt = new ArrayList<Integer>(4);
 		vt.add(new Vector3f(-1, -1, -1));
@@ -140,10 +149,15 @@ public class ProceduralPlanetSceneController extends SceneController {
 		pt.add(3);
 		planetMesh.setVerts(vt);
 		planetMesh.setTets(pt);
+		
+		
 		*/
-		
-		
 		planet.addMesh(planetMesh);
+		
+
+		planetMesh.setMats(mats1);
+		
+		//planet.addMesh(waterMesh);
 		
 		
 		/* Add an unattenuated point light to provide overall illumination. */
@@ -153,7 +167,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 		light.setLinearAttenuation(0.0f);
 		light.setQuadraticAttenuation(0.0f);
 		
-		light.setPosition(new Point3f(100.0f, 0.0f, 0.0f));
+		light.setPosition(new Point3f(-100.0f, 0.0f, 0.0f));
 		light.setName("CameraLight");
 		
 		
@@ -326,7 +340,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 		Util.rotateTuple(mCamera.getOrientation(), dir);
 		TetMesh mesh = (TetMesh)(planet.getMeshes().get(0));
 		dir.add(mCamera.getPosition(), dir);
-		mesh.deleteTet(new Vector3f(mCamera.getPosition()), dir);
+		mesh.deleteFirstTetAlongLine(new Vector3f(mCamera.getPosition()), dir);
 		requiresRender();
 	}
 	
@@ -373,6 +387,11 @@ public class ProceduralPlanetSceneController extends SceneController {
 			break;
 		}
 		case WALK: {
+			float scale = 0.005f;
+			
+			//Update camera heading
+			mCamera.deltaTheta += deltaX * scale;
+			mCamera.deltaPhi -= deltaY * scale;
 			requiresRender();
 			break;
 		}
