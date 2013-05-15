@@ -30,6 +30,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	private ArrayList<Material> mats;
 	private ArrayList<Face> interfaces;
 	private ArrayList<Face> boundaries;
+	private ArrayList<Face> partiallyCulled;
 
 	private TreeNode root;
 	private int kdCutoff = 4;
@@ -43,6 +44,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		faces = new ArrayList<Face>(10);
 		tets = new ArrayList<Tet>(10);
 		mats = new ArrayList<Material>(2);
+		partiallyCulled = new ArrayList<Face>();
 	}
 	
 	/** Set the materials of this TetMesh to the given list of materials. */
@@ -264,9 +266,10 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	}
 	
 	/** When deleting a tet, used to delete faces. */
-	public void removeFaceIfNecessary(Face f, Tet t, int i) {
+	public boolean removeFaceIfNecessary(Face f, Tet t, int i) {
 		if (f.t1 == null) { //was a boundary
 			faces.remove(f); //cull from TetMesh's faces list.
+			return true;
 		}
 		else { // had a second tet - have to rearrange 
 			if (f.t0 == t) {
@@ -284,20 +287,54 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			else {
 				System.out.println("neither of f" + i + "'s tets was toRemove!");
 			}
+			return false;
 		}
 
 	}
 	
 	/** Remove the given tetrahedron. */
-	public void deleteTet(Tet toRemove) {
+	public void deleteTet(Tet toRemove, Vector3f start, Vector3f end) {
 		//remove tet from tets list
 		this.tets.remove(toRemove);
 		
 		//cull faces if necessary
-		removeFaceIfNecessary(toRemove.f0, toRemove, 0);
-		removeFaceIfNecessary(toRemove.f1, toRemove, 1);
-		removeFaceIfNecessary(toRemove.f2, toRemove, 2);
-		removeFaceIfNecessary(toRemove.f3, toRemove, 3);
+		boolean remove0 = removeFaceIfNecessary(toRemove.f0, toRemove, 0);
+		boolean remove1 = removeFaceIfNecessary(toRemove.f1, toRemove, 1);
+		boolean remove2 = removeFaceIfNecessary(toRemove.f2, toRemove, 2);
+		boolean remove3 = removeFaceIfNecessary(toRemove.f3, toRemove, 3);
+		
+		//add faces to partially culled list
+		if (remove0)
+			partiallyCulled.add(toRemove.f0);
+		if (remove1)
+			partiallyCulled.add(toRemove.f1);
+		if (remove2)
+			partiallyCulled.add(toRemove.f2);
+		if (remove3)
+			partiallyCulled.add(toRemove.f3);
+		
+		
+		ArrayList<TreeNode> toVisit = new ArrayList<TreeNode>();
+		toVisit.add(root);
+		while(toVisit.size() > 0) {
+			TreeNode curr = toVisit.remove(0);
+			if (intersectLineWithBoundingBox(start, end, new Vector3f(curr.lowerLeft), new Vector3f (curr.upperRight))) {
+				if (curr.left != null)
+					toVisit.add(curr.left);
+				if (curr.right != null)
+					toVisit.add(curr.right);
+				if (curr.left == null && curr.right == null) {
+					if (remove0)
+						curr.faces.remove(toRemove.f0);
+					if (remove1)
+						curr.faces.remove(toRemove.f1);
+					if (remove2)
+						curr.faces.remove(toRemove.f2);
+					if (remove3)
+						curr.faces.remove(toRemove.f3);
+				}
+			}
+		}
 	
 		System.out.println("Deleted tet!");
 		createSurface(); //would be nice to not have to do this every time.
@@ -363,7 +400,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	/** Delete first tet encountered along the line between start and end. */
 	public void deleteFirstTetAlongLine(Vector3f start, Vector3f end, boolean accelerate) {
 		Tet remove = findFirstTetAlongLine(start, end, accelerate);
-		if (remove != null) deleteTet(remove);
+		if (remove != null) deleteTet(remove, start, end);
 	}
 	
 	public void createTetAtFirstFaceAlongLine(Vector3f start, Vector3f end, boolean accelerate) {
@@ -808,10 +845,12 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 						toVisit.add(current.right);
 					if (current.left == null && current.right == null) {
 						for (Face f : current.faces) {
-							PointIntersection interPos = intersectFace(f.v0.pos, f.v1.pos, f.v2.pos, l, start, end, false);
-							if (interPos.type != IntersectionType.NONE) {
-								hit.add(new FacePointIntersectionPair(interPos, f));
-								System.out.println("Intersection!");
+							if (!partiallyCulled.contains(f)) {
+								PointIntersection interPos = intersectFace(f.v0.pos, f.v1.pos, f.v2.pos, l, start, end, false);
+								if (interPos.type != IntersectionType.NONE) {
+									hit.add(new FacePointIntersectionPair(interPos, f));
+									System.out.println("Intersection!");
+								}
 							}
 						}
 					}
@@ -1018,9 +1057,9 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		Vector3f dir = new Vector3f(end);
 		dir.sub(start);
 		dir.normalize();
-		System.out.println("Start : " + start);
-		System.out.println("Dir : " + dir);
-		System.out.println("Min: " + min + ", Max: " + max);
+		//System.out.println("Start : " + start);
+		//System.out.println("Dir : " + dir);
+		//System.out.println("Min: " + min + ", Max: " + max);
 		
 		//check six faces...
 		float t, x, y, z;
@@ -1031,14 +1070,14 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			t = (min.x - start.x) / dir.x;
 			y = dir.y * t;
 			z = dir.z * t;
-			System.out.println("y: " + y + ", z: " + z);
+			//System.out.println("y: " + y + ", z: " + z);
 			if (y >= min.y && y <= max.y && z >= min.z && z <= max.z) return true;
 			
 			//max x
 			t = (max.x - start.x) / dir.x;
 			y = dir.y * t;
 			z = dir.z * t;
-			System.out.println("y: " + y + ", z: " + z);
+			//System.out.println("y: " + y + ", z: " + z);
 			if (y >= min.y && y <= max.y && z >= min.z && z <= max.z) return true;
 		}
 		
@@ -1047,14 +1086,14 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			t = (min.y - start.y) / dir.y;
 			x = dir.x * t;
 			z = dir.z * t;
-			System.out.println("x: " + x + ", z: " + z);
+			//System.out.println("x: " + x + ", z: " + z);
 			if (x >= min.x && x <= max.x && z >= min.z && z <= max.z) return true;
 			
 			//max y
 			t = (max.y - start.y) / dir.y;
 			x = dir.x * t;
 			z = dir.z * t;
-			System.out.println("x: " + x + ", z: " + z);
+			//System.out.println("x: " + x + ", z: " + z);
 			if (x >= min.x && x <= max.x && z >= min.z && z <= max.z) return true;
 		}
 		
@@ -1063,14 +1102,14 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			t = (min.z - start.z) / dir.z;
 			y = dir.y * t;
 			x = dir.x * t;
-			System.out.println("y: " + y + ", x: " + x);
+			//System.out.println("y: " + y + ", x: " + x);
 			if (y >= min.y && y <= max.y && x >= min.x && x <= max.x) return true;
 			
 			//max z
 			t = (max.z - start.z) / dir.z;
 			y = dir.y * t;
 			x = dir.x * t;
-			System.out.println("y: " + y + ", x: " + x);
+			//System.out.println("y: " + y + ", x: " + x);
 			if (y >= min.y && y <= max.y && x >= min.x && x <= max.x) return true;
 		}
 		
