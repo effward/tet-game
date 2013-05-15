@@ -41,7 +41,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 	//Default planet values
 	private float mMinRadius = 0.5f, mMaxRadius = 1.5f, mScale = 20.0f;
 
-	private int mSubdivs = 6;
+	private int mSubdivs = 5;
 	private boolean accelerate = false;
 
 	
@@ -71,7 +71,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 		
 		//planetHM.subdivide(2, true);
 		
-		/*
+		
 		System.out.println("creating variation basis");
 		planetHM.subdivide(Math.min(3, mSubdivs), true);
 		planetHM.randomize(mMinRadius, mMaxRadius);
@@ -103,7 +103,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 		
 		planetHM.erode(1, 0.5f);
 		
-		*/
+		
 		
 		planetHM.scale(mScale, 0.0f);
 		
