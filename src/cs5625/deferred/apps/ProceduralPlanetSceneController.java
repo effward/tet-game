@@ -40,8 +40,10 @@ public class ProceduralPlanetSceneController extends SceneController {
 	
 	//Default planet values
 	private float mMinRadius = 0.5f, mMaxRadius = 1.5f, mScale = 20.0f;
-	private int mSubdivs = 5;
+
+	private int mSubdivs = 6;
 	private boolean accelerate = false;
+
 	
 	private Geometry planet;
 	
@@ -72,7 +74,8 @@ public class ProceduralPlanetSceneController extends SceneController {
 		planetHM.subdivide(Math.min(3, mSubdivs), true);
 		planetHM.randomize(mMinRadius, mMaxRadius);
 		planetHM.smooth(3);
-
+		
+		
 		
 		System.out.println("subdividing");
 		planetHM.subdivide(Math.max(mSubdivs - 3, 0), false);
@@ -98,15 +101,14 @@ public class ProceduralPlanetSceneController extends SceneController {
 		
 		planetHM.erode(1, 0.5f);
 		
+		
 		planetHM.scale(mScale, 0.0f);
-
+		
 		
 		
 		//Convert heightmesh into a tetmesh.
 		planet = new Geometry();
-		TetMesh planetMesh = new TetMesh();
-		
-		planetMesh = planetHM.getTetmesh();
+		TetMesh planetMesh = planetHM.getTetmesh();
 		
 		System.out.println("converting to tetmesh");
 		
@@ -150,9 +152,9 @@ public class ProceduralPlanetSceneController extends SceneController {
 		pt.add(3);
 		planetMesh.setVerts(vt);
 		planetMesh.setTets(pt);
-		
-		
 		*/
+		
+		
 		planet.addMesh(planetMesh);
 		
 

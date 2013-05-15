@@ -31,9 +31,11 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	private ArrayList<Face> interfaces;
 	private ArrayList<Face> boundaries;
 	private ArrayList<Face> partiallyCulled;
+	private ArrayList<Integer> culledPolygons;
+	private ArrayList<Integer> culledVerts;
 
 	private TreeNode root;
-	private int kdCutoff = 4;
+	private int kdCutoff = 5;
 	private Point3f mUpperRight, mLowerLeft;
 	private float epsilon = 0.00000000001f;
 
@@ -45,6 +47,8 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		tets = new ArrayList<Tet>(10);
 		mats = new ArrayList<Material>(2);
 		partiallyCulled = new ArrayList<Face>();
+		culledPolygons = new ArrayList<Integer>();
+		culledVerts = new ArrayList<Integer>();
 	}
 	
 	/** Set the materials of this TetMesh to the given list of materials. */
@@ -97,7 +101,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	
 	private TreeNode kdTreeHelper(ArrayList<Face> f, int depth, Point3f upRight, Point3f lowLeft) {
 		if (f.size() <= 0) {
-			System.out.println("Faces empty");
+			//System.out.println("Faces empty");
 			return null;
 		}
 		else if (f.size() == 1) {
@@ -105,7 +109,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			node.upperRight = upRight;
 			node.lowerLeft = lowLeft;
 			node.faces = f;
-			System.out.println("Leaf Created with one face: " + node.faces);
+			//System.out.println("Leaf Created with one face: " + node.faces);
 			return node;
 		}
 		if (depth >= kdCutoff) {
@@ -184,25 +188,15 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 					splitPointless = true;
 			}
 			if (splitPointless) {
-				///TO_REMOVE
-				node.upperRight = upRight;
-				node.lowerLeft = lowLeft;
-				node.faces = f;
-				System.out.println("Split pointless, creating node with faces : " + f.size());
-				return node;
-				/*
 				axis = (axis + 1) % 3;
 				tries++;
-				*/
 			}
 		} while (splitPointless && tries < 4);
 		
 		if (tries == 4) {
-			//System.out.println("All splits pointless?!?!?!");
 			node.upperRight = upRight;
 			node.lowerLeft = lowLeft;
 			node.faces = f;
-			System.out.println("pointless, creating node with faces : " + f.size());
 			return node;
 		}
 		
@@ -218,19 +212,19 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			if (axis == 0) {
 				if (left.x <= midpoint)
 					leftList.add(f.get(i));
-				if (right.x >= midpoint)
+				if (right.x > midpoint)
 					rightList.add(f.get(i));
 			}
 			else if (axis == 1) {
 				if (left.y <= midpoint)
 					leftList.add(f.get(i));
-				if (right.y >= midpoint)
+				if (right.y > midpoint)
 					rightList.add(f.get(i));
 			}
 			else {
 				if (left.z <= midpoint)
 					leftList.add(f.get(i));
-				if (right.z >= midpoint)
+				if (right.z > midpoint)
 					rightList.add(f.get(i));
 			}
 		}
@@ -249,7 +243,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		list.addAll(rightList);
 		for (int i = 0; i < f.size(); i++) {
 			if(!list.contains(f.get(i))) {
-				System.out.println("*************HEMMORAGING FACESSSSSS***************");
+				System.out.println("*************HEMORRHAGING FACESSSSSS***************");
 			}
 		}
 		if (smallerFound && !listsIdentical) {
@@ -259,7 +253,6 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		
 		if (node.left == null && node.right == null) { //this is a leaf node
 			node.faces = f;
-			System.out.println("No children, creating node with faces : " + f.size());
 		}
 		//System.out.println("**********************");
 		return node;
@@ -318,7 +311,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		toVisit.add(root);
 		while(toVisit.size() > 0) {
 			TreeNode curr = toVisit.remove(0);
-			if (intersectLineWithBoundingBox(start, end, new Vector3f(curr.lowerLeft), new Vector3f (curr.upperRight))) {
+			if (intersectLineWithBB(start, end, new Vector3f(curr.lowerLeft), new Vector3f (curr.upperRight), false)) {
 				if (curr.left != null)
 					toVisit.add(curr.left);
 				if (curr.right != null)
@@ -336,20 +329,25 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			}
 		}
 	
-		System.out.println("Deleted tet!");
+		//System.out.println("Deleted tet!");
 		createSurface(); //would be nice to not have to do this every time.
 	}
 	
-	public Tet createTetAlongLine(Vector3f start, Vector3f end, boolean accelerate) {
-		Face f = findFirstFaceAlongLine(start, end, accelerate);
-		if (f == null)
-			return null; //and no tets were created that day
-		if (f.t1 == null) {
+
+	/** Create a new tet poking out of the first face along the line from start to end. */
+	public void createTetAtFirstFaceAlongLine(Vector3f start, Vector3f end, boolean accelerate) {
+		Face f = findFirstFaceAlongLine(start, end, true);
+		if (f == null) {
+			//and no tets were created that day
+		}
+		else if (f.t1 == null) {
 			Vector3f midpt = new Vector3f(f.center);
 			//midpt.add(f.v0.pos, f.v1.pos);
 			//midpt.scale(.5f);
 			//midpt.add(f.v2.pos);
 			//midpt.scale(.5f);
+		
+			
 			Vector3f edge1 = new Vector3f();
 			edge1.sub(f.v1.pos, f.v0.pos);
 			Vector3f edge2 = new Vector3f();
@@ -357,14 +355,20 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			Vector3f norm = new Vector3f();
 			norm.cross(edge1, edge2);
 			norm.normalize();
-			float l = (edge1.length() + edge2.length());
+			float l = -1.0f;//(edge1.length() + edge2.length());
 			norm.scale(l);
 			midpt.add(norm);
+			
+			System.out.println("v0: " + f.v0.pos + ", v1: " + f.v1.pos + ", v2: " + f.v2.pos + ", new: " + midpt);
+			
 			Vert created = new Vert(midpt);
 			verts.add(created);
-			return new Tet(f.v0, f.v1, f.v2, created, 0);
+			Tet tet = new Tet(f.v0, f.v1, f.v2, created, 0);
+			
+			tets.add(tet);
+			
+			createSurface();
 		}
-		return null;
 	}
 	
 	/** Return the first face encountered along the line between start and end. */
@@ -402,15 +406,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		Tet remove = findFirstTetAlongLine(start, end, accelerate);
 		if (remove != null) deleteTet(remove, start, end);
 	}
-	
-	public void createTetAtFirstFaceAlongLine(Vector3f start, Vector3f end, boolean accelerate) {
-		Tet created = createTetAlongLine(start, end, accelerate);
-		if (created != null)  {
-			tets.add(created);
-			createSurface();
-		}
-	}
-	
+
 	/**********************************************************
 	 * Start Intersection Calculation Stuff
 	 ********************************************************/
@@ -833,12 +829,13 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	public ArrayList<FacePointIntersectionPair> intersectLine(Vector3f start, Vector3f end, boolean accelerate) {
 		GVector l = computePluckerCoord(start, end);
 		ArrayList<FacePointIntersectionPair> hit = new ArrayList<FacePointIntersectionPair>();
+		int faceCount = 0;
 		if (accelerate) {
 			ArrayList<TreeNode> toVisit = new ArrayList<TreeNode>();
 			toVisit.add(root);
 			while(toVisit.size() > 0) {
 				TreeNode current = toVisit.remove(0);
-				if (intersectLineWithBoundingBox(start, end, new Vector3f(current.lowerLeft), new Vector3f(current.upperRight))) {
+				if (intersectLineWithBB(start, end, new Vector3f(current.lowerLeft), new Vector3f(current.upperRight), false)) {
 					if (current.left != null)
 						toVisit.add(current.left);
 					if (current.right != null)
@@ -846,10 +843,10 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 					if (current.left == null && current.right == null) {
 						for (Face f : current.faces) {
 							if (!partiallyCulled.contains(f)) {
+								faceCount++;
 								PointIntersection interPos = intersectFace(f.v0.pos, f.v1.pos, f.v2.pos, l, start, end, false);
 								if (interPos.type != IntersectionType.NONE) {
 									hit.add(new FacePointIntersectionPair(interPos, f));
-									System.out.println("Intersection!");
 								}
 							}
 						}
@@ -859,20 +856,15 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		}
 		else {
 		
-			for (Face f : boundaries) {
+			for (Face f : faces) {
 				PointIntersection interPos = intersectFace(f.v0.pos, f.v1.pos, f.v2.pos, l, start, end, false);
 				if (interPos.type != IntersectionType.NONE) {
 					hit.add(new FacePointIntersectionPair(interPos, f));
-					if (intersectLineWithBoundingBox(start, end, new Vector3f(f.lowerLeft), new Vector3f(f.upperRight))) {
-						System.out.println("Intersections agree");
-					}
-					else {
-						System.out.println("Bounding Box alg borked");
-						System.out.println(interPos.type);
-					}
 				}
+				faceCount++;
 			}
 		}
+		System.out.println(faceCount);
 		
 		return hit; //return hitPos also!!
 	}
@@ -976,10 +968,11 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		return hit;
 	}
 	
-	/** Returns true if the line segment between start and end intersects
+	/** Returns true if the line (just segment if segment is true)
+	 * between start and end intersects
 	 * the box between corners min and max.
 	 */
-	public boolean intersectLineSegmentWithBoundingBox(Vector3f start, Vector3f end, Vector3f min, Vector3f max) {
+	public boolean intersectLineWithBB(Vector3f start, Vector3f end, Vector3f min, Vector3f max, boolean segment) {
 		
 		//Convert into a ray...
 		Vector3f dir = new Vector3f(end);
@@ -994,127 +987,70 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		if (dir.x != 0.0f) {
 			//min x
 			t = (min.x - start.x) / dir.x;
-			if (t <= maxLen && t >= 0.0f) {
-				y = dir.y * t;
-				z = dir.z * t;
+			if (!segment || (t <= maxLen && t >= 0.0f)) {
+				y = dir.y * t + start.y;
+				z = dir.z * t + start.z;
 				if (y >= min.y && y <= max.y && z >= min.z && z <= max.z) return true;
 			}
 			
 			//max x
 			t = (max.x - start.x) / dir.x;
-			if (t <= maxLen && t >= 0.0f) {
-				y = dir.y * t;
-				z = dir.z * t;
+			if (!segment || (t <= maxLen && t >= 0.0f)) {
+				y = dir.y * t + start.y;
+				z = dir.z * t + start.z;
 				if (y >= min.y && y <= max.y && z >= min.z && z <= max.z) return true;
 			}
+		}
+		else {
+			System.out.println("zero x");
 		}
 		
 		if (dir.y != 0.0f) {
 			//min y
 			t = (min.y - start.y) / dir.y;
-			if (t <= maxLen && t >= 0.0f) {
-				x = dir.x * t;
-				z = dir.z * t;
+			if (!segment || (t <= maxLen && t >= 0.0f)) {
+				x = dir.x * t + start.x;
+				z = dir.z * t + start.z;
 				if (x >= min.x && x <= max.x && z >= min.z && z <= max.z) return true;
 			}
 			
 			//max y
 			t = (max.y - start.y) / dir.y;
-			if (t <= maxLen && t >= 0.0f) {
-				x = dir.x * t;
-				z = dir.z * t;
+			if (!segment || (t <= maxLen && t >= 0.0f)) {
+				x = dir.x * t + start.x;
+				z = dir.z * t + start.z;
 				if (x >= min.x && x <= max.x && z >= min.z && z <= max.z) return true;
 			}
+		}
+		else {
+			System.out.println("zero y");
 		}
 		
 		if (dir.z != 0.0f) {
 			//min z
 			t = (min.z - start.z) / dir.z;
-			if (t <= maxLen && t >= 0) {
-				y = dir.y * t;
-				x = dir.x * t;
+			if (!segment || (t <= maxLen && t >= 0.0f)) {
+				y = dir.y * t + start.y;
+				x = dir.x * t + start.x;
 				if (y >= min.y && y <= max.y && x >= min.x && x <= max.x) return true;
 			}
 			
 			//max z
 			t = (max.z - start.z) / dir.z;
-			if (t <= maxLen && t >= 0) {
-				y = dir.y * t;
-				x = dir.x * t;
+			if (!segment || (t <= maxLen && t >= 0.0f)) {
+				y = dir.y * t + start.y;
+				x = dir.x * t + start.x;
 				if (y >= min.y && y <= max.y && x >= min.x && x <= max.x) return true;
 			}
+		}
+
+		else {
+			System.out.println("zero z");
 		}
 		
 		return false;
 	}
 	
-	/** Returns true if the line segment between start and end intersects
-	 * the box between corners min and max.
-	 */
-	public boolean intersectLineWithBoundingBox(Vector3f start, Vector3f end, Vector3f min, Vector3f max) {
-		
-		//Convert into a ray...
-		Vector3f dir = new Vector3f(end);
-		dir.sub(start);
-		dir.normalize();
-		//System.out.println("Start : " + start);
-		//System.out.println("Dir : " + dir);
-		//System.out.println("Min: " + min + ", Max: " + max);
-		
-		//check six faces...
-		float t, x, y, z;
-		
-		
-		if (dir.x != 0.0f) {
-			//min x
-			t = (min.x - start.x) / dir.x;
-			y = dir.y * t;
-			z = dir.z * t;
-			//System.out.println("y: " + y + ", z: " + z);
-			if (y >= min.y && y <= max.y && z >= min.z && z <= max.z) return true;
-			
-			//max x
-			t = (max.x - start.x) / dir.x;
-			y = dir.y * t;
-			z = dir.z * t;
-			//System.out.println("y: " + y + ", z: " + z);
-			if (y >= min.y && y <= max.y && z >= min.z && z <= max.z) return true;
-		}
-		
-		if (dir.y != 0.0f) {
-			//min y
-			t = (min.y - start.y) / dir.y;
-			x = dir.x * t;
-			z = dir.z * t;
-			//System.out.println("x: " + x + ", z: " + z);
-			if (x >= min.x && x <= max.x && z >= min.z && z <= max.z) return true;
-			
-			//max y
-			t = (max.y - start.y) / dir.y;
-			x = dir.x * t;
-			z = dir.z * t;
-			//System.out.println("x: " + x + ", z: " + z);
-			if (x >= min.x && x <= max.x && z >= min.z && z <= max.z) return true;
-		}
-		
-		if (dir.z != 0.0f) {
-			//min z
-			t = (min.z - start.z) / dir.z;
-			y = dir.y * t;
-			x = dir.x * t;
-			//System.out.println("y: " + y + ", x: " + x);
-			if (y >= min.y && y <= max.y && x >= min.x && x <= max.x) return true;
-			
-			//max z
-			t = (max.z - start.z) / dir.z;
-			y = dir.y * t;
-			x = dir.x * t;
-			//System.out.println("y: " + y + ", x: " + x);
-			if (y >= min.y && y <= max.y && x >= min.x && x <= max.x) return true;
-		}
-		
-		return false;
-	}
 	
 	/**********************************************************
 	 * End Intersection Calculation Stuff
@@ -1197,8 +1133,6 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		//or are boundaries at the edge of the tetmesh.
 		calculateInterfacesAndBoundaries();
 		
-		System.out.println("Faces: " + faces.size()); //TODO remove
-		System.out.println("Shown faces: " + boundaries.size()); //TODO remove
 		
 		//Copy these into an actual array now we know the number of faces required.
 		int[] arr = new int[boundaries.size() * 3];
@@ -1268,6 +1202,9 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		mPolygonData = IntBuffer.wrap(arr);
 		mNormalData = FloatBuffer.wrap(normArr);
 		mTexCoordData = FloatBuffer.wrap(texArr);
+		
+		System.out.println("Faces: " + faces.size()); //TODO remove
+		System.out.println("Shown faces: " + boundaries.size()); //TODO remove
 		
 	}
 	
