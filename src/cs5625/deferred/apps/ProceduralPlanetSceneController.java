@@ -66,7 +66,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 		Heightmesh planetHM = new Heightmesh();
 		planetHM.createIcosa();
 		
-		/*
+		
 		System.out.println("creating variation basis");
 		planetHM.subdivide(Math.min(3, mSubdivs), true);
 		planetHM.randomize(mMinRadius, mMaxRadius);
@@ -94,7 +94,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 		planetHM.smoothFrequencies(-10, 20);
 		
 		planetHM.erode(1, 0.5f);
-		*/
+		
 		planetHM.scale(mScale, 0.0f);
 
 		
