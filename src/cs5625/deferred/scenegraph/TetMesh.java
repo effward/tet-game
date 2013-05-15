@@ -878,6 +878,78 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		return hit;
 	}
 	
+	/** Returns true if the line segment between start and end intersects
+	 * the box between corners min and max.
+	 */
+	public boolean intersectLineSegmentWithBoundingBox(Vector3f start, Vector3f end, Vector3f min, Vector3f max) {
+		
+		//Convert into a ray...
+		Vector3f dir = new Vector3f(end);
+		dir.sub(start);
+		float maxLen = dir.length();
+		dir.normalize();
+		
+		//check six faces...
+		float t, x, y, z;
+		
+		
+		if (dir.x != 0.0f) {
+			//min x
+			t = (min.x - start.x) / dir.x;
+			if (t <= maxLen && t >= 0.0f) {
+				y = dir.y * t;
+				z = dir.z * t;
+				if (y >= min.y && y <= max.y && z >= min.z && z <= max.z) return true;
+			}
+			
+			//max x
+			t = (max.x - start.x) / dir.x;
+			if (t <= maxLen && t >= 0.0f) {
+				y = dir.y * t;
+				z = dir.z * t;
+				if (y >= min.y && y <= max.y && z >= min.z && z <= max.z) return true;
+			}
+		}
+		
+		if (dir.y != 0.0f) {
+			//min y
+			t = (min.y - start.y) / dir.y;
+			if (t <= maxLen && t >= 0.0f) {
+				x = dir.x * t;
+				z = dir.z * t;
+				if (x >= min.x && x <= max.x && z >= min.z && z <= max.z) return true;
+			}
+			
+			//max y
+			t = (max.y - start.y) / dir.y;
+			if (t <= maxLen && t >= 0.0f) {
+				x = dir.x * t;
+				z = dir.z * t;
+				if (x >= min.x && x <= max.x && z >= min.z && z <= max.z) return true;
+			}
+		}
+		
+		if (dir.z != 0.0f) {
+			//min z
+			t = (min.z - start.z) / dir.z;
+			if (t <= maxLen && t >= 0) {
+				y = dir.y * t;
+				x = dir.x * t;
+				if (y >= min.y && y <= max.y && x >= min.x && x <= max.x) return true;
+			}
+			
+			//max z
+			t = (max.z - start.z) / dir.z;
+			if (t <= maxLen && t >= 0) {
+				y = dir.y * t;
+				x = dir.x * t;
+				if (y >= min.y && y <= max.y && x >= min.x && x <= max.x) return true;
+			}
+		}
+		
+		return false;
+	}
+	
 	/**********************************************************
 	 * End Intersection Calculation Stuff
 	 ********************************************************/
