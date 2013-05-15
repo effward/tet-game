@@ -476,10 +476,34 @@ public class Heightmesh extends Geometry {
 		ArrayList<Vector3f> verts = new ArrayList<Vector3f>(numVerts);
 		ArrayList<Integer> tets = new ArrayList<Integer>(trisHM.size()*4);
 		
-		for (Vertex v : vertsHM) {
+		for (Vertex v: vertsHM) {
 			verts.add(v.pt.v);
 		}
 		
+		verts.add(new Vector3f(0.0f, 0.0f, 0.0f)); //heart of the world
+		
+		for (int i = 0; i < trisHM.size(); i+= 1) {
+			Triangle t = trisHM.get(i);
+			tets.add(t.v0);
+			tets.add(t.v1);
+			tets.add(t.v2);
+			tets.add(numVerts - 1);
+		}
+		
+		
+		
+		/*
+		int n = 10;
+		
+		for (int i = n; i > 0; i--) {
+			for (Vertex v : vertsHM) {
+				Vector3f ve = new Vector3f(v.pt.v);
+				ve.scale((float)i / (float)n);
+				verts.add(ve);
+			}
+		}
+		
+				
 		// add center of the planet as a point
 		verts.add(new Vector3f(0f,0f,0f));
 		
@@ -488,12 +512,33 @@ public class Heightmesh extends Geometry {
 		
 		for (int i = 0; i < trisHM.size(); i+= 1) {
 			Triangle t = trisHM.get(i);
-			tets.add(t.v0);
-			tets.add(t.v1);
-			tets.add(t.v2);
+			for (int j = 0; j < n - 1; j++) {
+				
+				tets.add(t.v0 + j * vertsHM.size());
+				tets.add(t.v1 + j * vertsHM.size());
+				tets.add(t.v2 + j * vertsHM.size());
+				tets.add(t.v0 + (j + 1) * vertsHM.size());
+				
+				//add two more
+				tets.add(t.v1 + j * vertsHM.size());
+				tets.add(t.v2 + j * vertsHM.size());
+				tets.add(t.v0 + (j + 1) * vertsHM.size());
+				tets.add(t.v1 + (j + 1) * vertsHM.size());
+				
+				
+				tets.add(t.v2 + j * vertsHM.size());
+				tets.add(t.v2 + (j + 1) * vertsHM.size());
+				tets.add(t.v0 + (j + 1) * vertsHM.size());
+				tets.add(t.v1 + (j + 1) * vertsHM.size());
+				
+			}
+			tets.add(t.v0 + (n - 1) * vertsHM.size());
+			tets.add(t.v1 + (n - 1) * vertsHM.size());
+			tets.add(t.v2 + (n - 1) * vertsHM.size());
 			tets.add(numVerts-1);
 		}
-		
+		*/
+		planetMesh.setVerts(verts);
 		planetMesh.setTets(tets);
 		return planetMesh;
 	}

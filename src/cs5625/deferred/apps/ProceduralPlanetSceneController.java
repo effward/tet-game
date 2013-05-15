@@ -41,7 +41,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 	//Default planet values
 	private float mMinRadius = 0.5f, mMaxRadius = 1.5f, mScale = 20.0f;
 
-	private int mSubdivs = 6;
+	private int mSubdivs = 5;
 	private boolean accelerate = false;
 
 	
@@ -72,6 +72,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 		//planetHM.subdivide(2, true);
 		
 		/*
+		
 		System.out.println("creating variation basis");
 		planetHM.subdivide(Math.min(3, mSubdivs), true);
 		planetHM.randomize(mMinRadius, mMaxRadius);
@@ -102,8 +103,8 @@ public class ProceduralPlanetSceneController extends SceneController {
 		planetHM.smoothFrequencies(-10, 20);
 		
 		planetHM.erode(1, 0.5f);
-		*/
 		
+		*/
 		
 		planetHM.scale(mScale, 0.0f);
 		
@@ -173,7 +174,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 		light.setLinearAttenuation(0.0f);
 		light.setQuadraticAttenuation(0.0f);
 		
-		light.setPosition(new Point3f(-100.0f, 0.0f, 0.0f));
+		light.setPosition(new Point3f(100.0f, 0.0f, 0.0f));
 		light.setName("CameraLight");
 		
 		

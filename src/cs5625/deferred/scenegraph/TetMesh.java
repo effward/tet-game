@@ -408,6 +408,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		boolean remove3 = removeFaceIfNecessary(toRemove.f3, toRemove, 3);
 		
 		//add faces to partially culled list
+		
 		if (remove0)
 			partiallyCulled.add(toRemove.f0);
 		if (remove1)
@@ -439,6 +440,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 				}
 			}
 		}
+		
 	
 		//System.out.println("Deleted tet!");
 		ArrayList<Face> newBound = recalculateBoundaries();
@@ -497,17 +499,21 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 
 	/** Create a new tet poking out of the first face along the line from start to end. */
 	public void createTetAtFirstFaceAlongLine(Vector3f start, Vector3f end, boolean accelerate) {
-		Face f = findFirstFaceAlongLine(start, end, true);
+		Face f = findFirstFaceAlongLine(start, end, false);
 		if (f == null) {
 			//and no tets were created that day
 		}
 		else if (f.t1 == null) {
-			Vector3f midpt = new Vector3f(f.center);
+			//Vector3f midpt = new Vector3f(f.center);
 			//midpt.add(f.v0.pos, f.v1.pos);
 			//midpt.scale(.5f);
 			//midpt.add(f.v2.pos);
 			//midpt.scale(.5f);
 		
+			Vector3f mid = new Vector3f(f.v0.pos);
+			mid.add(f.v1.pos);
+			mid.add(f.v2.pos);
+			mid.scale(1f/3f);
 			
 			Vector3f edge1 = new Vector3f();
 			edge1.sub(f.v1.pos, f.v0.pos);
@@ -518,11 +524,11 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 			norm.normalize();
 			float l = -(edge1.length() + edge2.length()) / 2;
 			norm.scale(l);
-			midpt.add(norm);
+			mid.add(norm);
 			
 			//System.out.println("v0: " + f.v0.pos + ", v1: " + f.v1.pos + ", v2: " + f.v2.pos + ", new: " + midpt);
 			
-			Vert created = new Vert(midpt);
+			Vert created = new Vert(mid);
 			verts.add(created);
 			
 			
@@ -1442,8 +1448,8 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		//And texture coords
 		for (int i = 0; i < verts.size(); i++) {
 			Vector3f pos = verts.get(i).pos;
-			texArr[2 * i] = (float)(Math.atan2(pos.z, pos.x) / (2*Math.PI) * 10);
-			texArr[2 * i + 1] = (float)(Math.atan2(pos.y, Math.sqrt(pos.x * pos.x + pos.z * pos.z)) / (2*Math.PI) * 10);
+			texArr[2 * i] = (float)(Math.atan2(pos.z, pos.x) / (2*Math.PI) * 40) + pos.length() / 5.0f;
+			texArr[2 * i + 1] = (float)(Math.atan2(pos.y, Math.sqrt(pos.x * pos.x + pos.z * pos.z)) / (2*Math.PI) * 40) + pos.length() / 5.0f;
 		}
 		
 		int v0, v1, v2;
