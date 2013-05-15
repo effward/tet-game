@@ -475,13 +475,13 @@ public class Heightmesh extends Geometry {
 		
 		ArrayList<Vector3f> verts = new ArrayList<Vector3f>(numVerts);
 		ArrayList<Integer> tets = new ArrayList<Integer>(trisHM.size()*4);
-		// add center of the planet as a point
-		verts.add(new Vector3f(0f,0f,0f));
+		
 		for (Vertex v : vertsHM) {
 			verts.add(v.pt.v);
 		}
 		
-		
+		// add center of the planet as a point
+		verts.add(new Vector3f(0f,0f,0f));
 		
 		planetMesh.setVerts(verts);
 		

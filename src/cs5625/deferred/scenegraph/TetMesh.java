@@ -33,6 +33,9 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 	private ArrayList<Face> partiallyCulled;
 	private ArrayList<Integer> culledPolygons;
 	private ArrayList<Integer> culledVerts;
+	private float[] vtx, normArr, texArr;
+	private int[] arr; 
+	private Vector3f[] norms; 
 
 	private TreeNode root;
 	private int kdCutoff = 5;
@@ -258,10 +261,118 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		return node;
 	}
 	
+	private void removeVertex(Vert v) {
+		int idx2 = verts.indexOf(v);
+		culledVerts.add(new Integer(idx2));
+	}
+	
+	private void removeFace(Face f) {
+		int idx = boundaries.indexOf(f);
+		if (idx != -1) {
+			arr[3 * idx] = vtx.length / 3 - 1;
+			arr[3 * idx + 1] = vtx.length / 3 - 1;
+			arr[3 * idx + 2] = vtx.length / 3 - 1;
+			mPolygonData = IntBuffer.wrap(arr);
+			/*
+			
+			*/
+			f.v0.faces.remove(f);
+			f.v1.faces.remove(f);
+			f.v2.faces.remove(f);
+			if (f.v0.faces.size() == 0)
+				removeVertex(f.v0);
+			/*else {
+				int idx2 = verts.indexOf(f.v0);
+				Vector3f norm = new Vector3f();
+				for (Face face : f.v0.faces) {
+					Vector3f norm2 = new Vector3f();
+					Vector3f temp = new Vector3f();
+					norm2.sub(face.v1.pos, face.v0.pos);
+					temp.sub(face.v2.pos, face.v0.pos);
+					norm2.cross(temp, norm2);
+					norm2.normalize();
+					norm.add(norm2);
+				}
+				if (norm.lengthSquared() == 0) {
+					norm.set(0.0f, 0.0f, 1.0f); // vert not in any interface edges
+				}
+				else {
+					norm.normalize();
+				}
+				norms[idx2].sub(norm);
+				norms[idx2].normalize();
+				normArr[3 * idx2] = norms[idx2].x;
+				normArr[3 * idx2 + 1] = norms[idx2].y;
+				normArr[3 * idx2 + 2] = norms[idx2].z;
+				mNormalData = FloatBuffer.wrap(normArr);
+			}*/
+			if (f.v1.faces.size() == 0)
+				removeVertex(f.v1);
+			/*
+			else {
+				int idx2 = verts.indexOf(f.v1);
+				Vector3f norm = new Vector3f();
+				for (Face face : f.v1.faces) {
+					Vector3f norm2 = new Vector3f();
+					Vector3f temp = new Vector3f();
+					norm2.sub(face.v1.pos, face.v0.pos);
+					temp.sub(face.v2.pos, face.v0.pos);
+					norm2.cross(temp, norm2);
+					norm2.normalize();
+					norm.add(norm2);
+				}
+				if (norm.lengthSquared() == 0) {
+					norm.set(0.0f, 0.0f, 1.0f); // vert not in any interface edges
+				}
+				else {
+					norm.normalize();
+				}
+				norms[idx2].sub(norm);
+				norms[idx2].normalize();
+				normArr[3 * idx2] = norms[idx2].x;
+				normArr[3 * idx2 + 1] = norms[idx2].y;
+				normArr[3 * idx2 + 2] = norms[idx2].z;
+				mNormalData = FloatBuffer.wrap(normArr);
+			} */
+			if (f.v2.faces.size() == 0)
+				removeVertex(f.v2);
+			/*
+			else {
+				int idx2 = verts.indexOf(f.v2);
+				Vector3f norm = new Vector3f();
+				for (Face face : f.v2.faces) {
+					Vector3f norm2 = new Vector3f();
+					Vector3f temp = new Vector3f();
+					norm2.sub(face.v1.pos, face.v0.pos);
+					temp.sub(face.v2.pos, face.v0.pos);
+					norm2.cross(temp, norm2);
+					norm2.normalize();
+					norm.add(norm2);
+				}
+				if (norm.lengthSquared() == 0) {
+					norm.set(0.0f, 0.0f, 1.0f); // vert not in any interface edges
+				}
+				else {
+					norm.normalize();
+				}
+				norms[idx2].sub(norm);
+				norms[idx2].normalize();
+				normArr[3 * idx2] = norms[idx2].x;
+				normArr[3 * idx2 + 1] = norms[idx2].y;
+				normArr[3 * idx2 + 2] = norms[idx2].z;
+				mNormalData = FloatBuffer.wrap(normArr);
+			}*/
+			
+		}
+		faces.remove(f);
+		if (!culledPolygons.contains(new Integer(idx)))
+			culledPolygons.add(new Integer(idx));
+	}
+	
 	/** When deleting a tet, used to delete faces. */
 	public boolean removeFaceIfNecessary(Face f, Tet t, int i) {
 		if (f.t1 == null) { //was a boundary
-			faces.remove(f); //cull from TetMesh's faces list.
+			removeFace(f);
 			return true;
 		}
 		else { // had a second tet - have to rearrange 
@@ -330,7 +441,57 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		}
 	
 		//System.out.println("Deleted tet!");
-		createSurface(); //would be nice to not have to do this every time.
+		ArrayList<Face> newBound = recalculateBoundaries();
+		ArrayList<Face> toAdds = new ArrayList<Face>();
+		for(int i = 0; i < newBound.size(); i++) {
+			Face toAdd = newBound.get(i);
+			if(!boundaries.contains(toAdd)) {
+				toAdds.add(toAdd);
+			}
+		}
+		boolean recompute = false;
+		System.out.println("ToAdds.size " + toAdds.size());
+		System.out.println("culled.size " + culledPolygons.size());
+		System.out.println(culledPolygons);
+		if (toAdds.size() <= culledPolygons.size()) {
+			for(int i = 0; i < toAdds.size(); i++) {
+				Face toAdd = newBound.get(i);
+				System.out.println("Adding Face: " + verts.indexOf(toAdd.v0) + ", " + verts.indexOf(toAdd.v1) + ", " + verts.indexOf(toAdd.v2));
+				int idx = culledPolygons.remove(0);
+				System.out.println("Adding at idx: " + idx);
+				System.out.println("Replacing " + arr[3 * idx] + ", " + arr[3*idx+1] + ", " + arr[3*idx+2]);
+				arr[3 * idx] = verts.indexOf(toAdd.v0);
+				arr[3 * idx + 1] = verts.indexOf(toAdd.v1);
+				arr[3 * idx + 2] = verts.indexOf(toAdd.v2);
+				System.out.println("Replaced " + arr[3 * idx] + ", " + arr[3*idx+1] + ", " + arr[3*idx+2]);
+
+			}
+			mPolygonData = IntBuffer.wrap(arr);
+			return;
+		}
+		else {
+			int[] temp = new int[arr.length + toAdds.size() * 3];
+			for(int i = 0; i < arr.length; i++) {
+				temp[i] = arr[i];
+			}
+			int i = 0;
+			for (Face toAdd : toAdds) {
+				int idx = arr.length / 3 + i++;
+				System.out.println("Adding at idx: " + idx);
+				temp[3 * idx] = verts.indexOf(toAdd.v0);
+				temp[3 * idx + 1] = verts.indexOf(toAdd.v1);
+				temp[3 * idx + 2] = verts.indexOf(toAdd.v2);
+				boundaries.add(toAdd);
+			}
+			
+			arr = temp;
+			mPolygonData = IntBuffer.wrap(arr);
+			return;
+			//createSurface(); //would be nice to not have to do this every time.
+		}
+		//System.out.println("Recomputing surface**************");
+		//createSurface();
+
 	}
 	
 
@@ -871,101 +1032,212 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		return hit; //return hitPos also!!
 	}
 	
-	public ArrayList<FacePointIntersectionPair> intersectLineSegment(Vector3f start, Vector3f end) {
+	public ArrayList<FacePointIntersectionPair> intersectLineSegment(Vector3f start, Vector3f end, boolean accelerate) {
 		GVector l = computePluckerCoord(start, end);
 		ArrayList<FacePointIntersectionPair> hit = new ArrayList<FacePointIntersectionPair>();
 		
-		for (Face f: faces) {
-			PointIntersection intersection = intersectFace(f.v0.pos, f.v1.pos, f.v2.pos, l, start, end, false);
-			if (intersection.type == IntersectionType.NONE)
-				continue;
-			else if (intersection.type == IntersectionType.PROPER || 
-					intersection.type == IntersectionType.EDGE ||
-					intersection.type == IntersectionType.VERTEX) {
-				Vector3f vert0 = null;
-				Vector3f vert1 = null;
-				Vector3f vert2 = null;
-				if (intersection.type == IntersectionType.VERTEX) {
-					if (!f.v0.pos.equals(intersection.points.get(0))) {
+		if (accelerate) {
+			ArrayList<TreeNode> toVisit = new ArrayList<TreeNode>();
+			toVisit.add(root);
+			while(toVisit.size() > 0) {
+				TreeNode current = toVisit.remove(0);
+				if (intersectLineWithBB(start, end, new Vector3f(current.lowerLeft), new Vector3f(current.upperRight), false)) {
+					if (current.left != null)
+						toVisit.add(current.left);
+					if (current.right != null)
+						toVisit.add(current.right);
+					if (current.left == null && current.right == null) {
+						for (Face f : current.faces) {
+							if (!partiallyCulled.contains(f)) {
+								PointIntersection intersection = intersectFace(f.v0.pos, f.v1.pos, f.v2.pos, l, start, end, false);
+								if (intersection.type == IntersectionType.NONE)
+									continue;
+								else if (intersection.type == IntersectionType.PROPER || 
+										intersection.type == IntersectionType.EDGE ||
+										intersection.type == IntersectionType.VERTEX) {
+									Vector3f vert0 = null;
+									Vector3f vert1 = null;
+									Vector3f vert2 = null;
+									if (intersection.type == IntersectionType.VERTEX) {
+										if (!f.v0.pos.equals(intersection.points.get(0))) {
+											vert0 = f.v0.pos;
+											vert1 = f.v1.pos;
+											vert2 = f.v2.pos;
+										}
+										else if (!f.v1.pos.equals(intersection.points.get(0))) {
+											vert0 = f.v1.pos;
+											vert1 = f.v0.pos;
+											vert2 = f.v2.pos;
+										}				}
+									else {
+										vert0 = f.v0.pos;
+										vert1 = f.v1.pos;
+										vert2 = f.v2.pos;
+									}
+									if (vert0 == null || vert1 == null || vert2 == null) {
+										System.out.println("************THIS REALLY SHOULDN'T HAPPEN**************");
+										continue;
+									}
+									GVector l2 = computePluckerCoord(start, vert0);
+									GVector l3 = computePluckerCoord(vert0, end);
+									GVector l4 = computePluckerCoord(vert1, vert2);
+									float s1 = computeSideOperator(l4, l3);
+									float s2 = computeSideOperator(l4, l2);
+									if (s1 == 0 || s2 == 0) {
+										if (intersection.type == IntersectionType.PROPER)
+											intersection.type = IntersectionType.PROPER_END;
+										else if (intersection.type == IntersectionType.VERTEX)
+											intersection.type = IntersectionType.VERTEX_END;
+										else if (intersection.type == IntersectionType.EDGE)
+											intersection.type = IntersectionType.EDGE_END;
+									}
+									else if ((s1 < 0 && s2 > 0) || (s1 > 0 && s2 < 0)) {
+										continue;
+									}
+									hit.add(new FacePointIntersectionPair(intersection, f));
+								}
+								else { //coplanar
+									PointIntersection inter1 = intersectLineSegmentLineSegment(start, end, f.v0.pos, f.v1.pos);
+									PointIntersection inter2 = intersectLineSegmentLineSegment(start, end, f.v1.pos, f.v2.pos);
+									PointIntersection inter3 = intersectLineSegmentLineSegment(start, end, f.v2.pos, f.v0.pos);
+									ArrayList<Vector3f> temp = new ArrayList<Vector3f>();
+									if (inter1.type == IntersectionType.LINE)
+										temp.add(inter1.points.get(0));
+									if (inter2.type == IntersectionType.LINE)
+										temp.add(inter2.points.get(0));
+									if (inter3.type == IntersectionType.LINE)
+										temp.add(inter3.points.get(0));
+									
+									if (temp.size() == 3) {
+										intersection.type = IntersectionType.COPLANAR_VERTEX_EDGE;
+										for(int i = 0; i < temp.size(); i++) {
+											for(int j = i+1; j < temp.size(); j++) {
+												if(temp.get(i).equals(temp.get(j))) {
+													temp.remove(j);
+													break;
+												}
+											}
+										}
+										intersection.points = temp;
+										hit.add(new FacePointIntersectionPair(intersection, f));
+										continue;
+									}
+									else if (temp.size() == 2) {
+										intersection.type = IntersectionType.COPLANAR_TWO_EDGES;
+										intersection.points = temp;
+										hit.add(new FacePointIntersectionPair(intersection, f));
+										continue;
+									}
+									else if (temp.size() == 1) {
+										intersection.type = IntersectionType.COPLANAR_EDGE;
+										intersection.points = temp;
+										hit.add(new FacePointIntersectionPair(intersection, f));
+										continue;
+									}
+									intersection.type = IntersectionType.COPLANAR_CONTAINED;
+									intersection.points = null;
+									hit.add(new FacePointIntersectionPair(intersection, f));
+									continue;
+								}	
+							}
+						}
+					}
+				}
+			}
+		}
+		else {
+			for (Face f: faces) {
+				PointIntersection intersection = intersectFace(f.v0.pos, f.v1.pos, f.v2.pos, l, start, end, false);
+				if (intersection.type == IntersectionType.NONE)
+					continue;
+				else if (intersection.type == IntersectionType.PROPER || 
+						intersection.type == IntersectionType.EDGE ||
+						intersection.type == IntersectionType.VERTEX) {
+					Vector3f vert0 = null;
+					Vector3f vert1 = null;
+					Vector3f vert2 = null;
+					if (intersection.type == IntersectionType.VERTEX) {
+						if (!f.v0.pos.equals(intersection.points.get(0))) {
+							vert0 = f.v0.pos;
+							vert1 = f.v1.pos;
+							vert2 = f.v2.pos;
+						}
+						else if (!f.v1.pos.equals(intersection.points.get(0))) {
+							vert0 = f.v1.pos;
+							vert1 = f.v0.pos;
+							vert2 = f.v2.pos;
+						}				}
+					else {
 						vert0 = f.v0.pos;
 						vert1 = f.v1.pos;
 						vert2 = f.v2.pos;
 					}
-					else if (!f.v1.pos.equals(intersection.points.get(0))) {
-						vert0 = f.v1.pos;
-						vert1 = f.v0.pos;
-						vert2 = f.v2.pos;
-					}				}
-				else {
-					vert0 = f.v0.pos;
-					vert1 = f.v1.pos;
-					vert2 = f.v2.pos;
+					if (vert0 == null || vert1 == null || vert2 == null) {
+						System.out.println("************THIS REALLY SHOULDN'T HAPPEN**************");
+						continue;
+					}
+					GVector l2 = computePluckerCoord(start, vert0);
+					GVector l3 = computePluckerCoord(vert0, end);
+					GVector l4 = computePluckerCoord(vert1, vert2);
+					float s1 = computeSideOperator(l4, l3);
+					float s2 = computeSideOperator(l4, l2);
+					if (s1 == 0 || s2 == 0) {
+						if (intersection.type == IntersectionType.PROPER)
+							intersection.type = IntersectionType.PROPER_END;
+						else if (intersection.type == IntersectionType.VERTEX)
+							intersection.type = IntersectionType.VERTEX_END;
+						else if (intersection.type == IntersectionType.EDGE)
+							intersection.type = IntersectionType.EDGE_END;
+					}
+					else if ((s1 < 0 && s2 > 0) || (s1 > 0 && s2 < 0)) {
+						continue;
+					}
+					hit.add(new FacePointIntersectionPair(intersection, f));
 				}
-				if (vert0 == null || vert1 == null || vert2 == null) {
-					System.out.println("************THIS REALLY SHOULDN'T HAPPEN**************");
-					continue;
-				}
-				GVector l2 = computePluckerCoord(start, vert0);
-				GVector l3 = computePluckerCoord(vert0, end);
-				GVector l4 = computePluckerCoord(vert1, vert2);
-				float s1 = computeSideOperator(l4, l3);
-				float s2 = computeSideOperator(l4, l2);
-				if (s1 == 0 || s2 == 0) {
-					if (intersection.type == IntersectionType.PROPER)
-						intersection.type = IntersectionType.PROPER_END;
-					else if (intersection.type == IntersectionType.VERTEX)
-						intersection.type = IntersectionType.VERTEX_END;
-					else if (intersection.type == IntersectionType.EDGE)
-						intersection.type = IntersectionType.EDGE_END;
-				}
-				else if ((s1 < 0 && s2 > 0) || (s1 > 0 && s2 < 0)) {
-					continue;
-				}
-				hit.add(new FacePointIntersectionPair(intersection, f));
-			}
-			else { //coplanar
-				PointIntersection inter1 = intersectLineSegmentLineSegment(start, end, f.v0.pos, f.v1.pos);
-				PointIntersection inter2 = intersectLineSegmentLineSegment(start, end, f.v1.pos, f.v2.pos);
-				PointIntersection inter3 = intersectLineSegmentLineSegment(start, end, f.v2.pos, f.v0.pos);
-				ArrayList<Vector3f> temp = new ArrayList<Vector3f>();
-				if (inter1.type == IntersectionType.LINE)
-					temp.add(inter1.points.get(0));
-				if (inter2.type == IntersectionType.LINE)
-					temp.add(inter2.points.get(0));
-				if (inter3.type == IntersectionType.LINE)
-					temp.add(inter3.points.get(0));
-				
-				if (temp.size() == 3) {
-					intersection.type = IntersectionType.COPLANAR_VERTEX_EDGE;
-					for(int i = 0; i < temp.size(); i++) {
-						for(int j = i+1; j < temp.size(); j++) {
-							if(temp.get(i).equals(temp.get(j))) {
-								temp.remove(j);
-								break;
+				else { //coplanar
+					PointIntersection inter1 = intersectLineSegmentLineSegment(start, end, f.v0.pos, f.v1.pos);
+					PointIntersection inter2 = intersectLineSegmentLineSegment(start, end, f.v1.pos, f.v2.pos);
+					PointIntersection inter3 = intersectLineSegmentLineSegment(start, end, f.v2.pos, f.v0.pos);
+					ArrayList<Vector3f> temp = new ArrayList<Vector3f>();
+					if (inter1.type == IntersectionType.LINE)
+						temp.add(inter1.points.get(0));
+					if (inter2.type == IntersectionType.LINE)
+						temp.add(inter2.points.get(0));
+					if (inter3.type == IntersectionType.LINE)
+						temp.add(inter3.points.get(0));
+					
+					if (temp.size() == 3) {
+						intersection.type = IntersectionType.COPLANAR_VERTEX_EDGE;
+						for(int i = 0; i < temp.size(); i++) {
+							for(int j = i+1; j < temp.size(); j++) {
+								if(temp.get(i).equals(temp.get(j))) {
+									temp.remove(j);
+									break;
+								}
 							}
 						}
+						intersection.points = temp;
+						hit.add(new FacePointIntersectionPair(intersection, f));
+						continue;
 					}
-					intersection.points = temp;
+					else if (temp.size() == 2) {
+						intersection.type = IntersectionType.COPLANAR_TWO_EDGES;
+						intersection.points = temp;
+						hit.add(new FacePointIntersectionPair(intersection, f));
+						continue;
+					}
+					else if (temp.size() == 1) {
+						intersection.type = IntersectionType.COPLANAR_EDGE;
+						intersection.points = temp;
+						hit.add(new FacePointIntersectionPair(intersection, f));
+						continue;
+					}
+					intersection.type = IntersectionType.COPLANAR_CONTAINED;
+					intersection.points = null;
 					hit.add(new FacePointIntersectionPair(intersection, f));
 					continue;
-				}
-				else if (temp.size() == 2) {
-					intersection.type = IntersectionType.COPLANAR_TWO_EDGES;
-					intersection.points = temp;
-					hit.add(new FacePointIntersectionPair(intersection, f));
-					continue;
-				}
-				else if (temp.size() == 1) {
-					intersection.type = IntersectionType.COPLANAR_EDGE;
-					intersection.points = temp;
-					hit.add(new FacePointIntersectionPair(intersection, f));
-					continue;
-				}
-				intersection.type = IntersectionType.COPLANAR_CONTAINED;
-				intersection.points = null;
-				hit.add(new FacePointIntersectionPair(intersection, f));
-				continue;
-			}	
+				}	
+			}
 		}
 		return hit;
 	}
@@ -1126,6 +1398,16 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		}
 	}
 	
+	private ArrayList<Face> recalculateBoundaries() {
+		ArrayList<Face> ret = new ArrayList<Face>();
+		for (Face f: faces) {
+			if (f.t1 == null) {
+				ret.add(f);
+			}
+		}
+		return ret;
+	}
+	
 	/** Set this TetMesh's polygons to be present at any interface between
 	 * tetrahedrons with different materials (where at least one is non-opaque), or
 	 * at boundaries where a Face has only one adjacent Tet.
@@ -1136,7 +1418,7 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		calculateInterfacesAndBoundaries();
 		
 		
-		float[] vtx = new float[verts.size() * 3];
+		vtx = new float[verts.size() * 3];
 		
 		for (int i = 0; i < verts.size(); i++) {
 			vtx[3 * i] = verts.get(i).pos.x;
@@ -1145,13 +1427,13 @@ public class TetMesh extends Mesh implements OpenGLResourceObject {
 		}
 		
 		//Copy these into an actual array now we know the number of faces required.
-		int[] arr = new int[boundaries.size() * 3];
+		arr = new int[boundaries.size() * 3];
 		
 		//simultaneously compute normals.
-		Vector3f[] norms = new Vector3f[verts.size()];
-		float[] normArr = new float[verts.size() * 3];
+		norms = new Vector3f[verts.size()];
+		normArr = new float[verts.size() * 3];
 		
-		float[] texArr = new float[verts.size() * 2];
+		texArr = new float[verts.size() * 2];
 		
 		for (int i = 0; i < norms.length; i++) {
 			norms[i] = new Vector3f(0.0f, 0.0f, 0.0f); //zero normal
