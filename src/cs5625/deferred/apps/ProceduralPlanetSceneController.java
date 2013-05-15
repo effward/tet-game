@@ -173,7 +173,7 @@ public class ProceduralPlanetSceneController extends SceneController {
 		light.setLinearAttenuation(0.0f);
 		light.setQuadraticAttenuation(0.0f);
 		
-		light.setPosition(new Point3f(-100.0f, 0.0f, 0.0f));
+		light.setPosition(new Point3f(100.0f, 0.0f, 0.0f));
 		light.setName("CameraLight");
 		
 		
